@@ -1,0 +1,13 @@
+{
+  "name": "kedai-annurpro",
+  "private": true,
+  "type": "module",
+  "description": "Kedai AnnurPro: katalog digital dengan order ke WhatsApp (Cloudflare Pages + Functions + D1 + R2).",
+  "scripts": {
+    "test": "node --test --disable-warning=ExperimentalWarning tests/*.test.js",
+    "test:e2e": "node --disable-warning=ExperimentalWarning tests/e2e/run.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
+}
