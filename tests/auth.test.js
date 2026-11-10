@@ -213,7 +213,11 @@ test('kedai sedia ada dipulangkan dalam /api/me', async () => {
   const res = await callApi(env, 'GET', '/api/me', withCookie(cookieFrom(me)));
   assert.deepEqual(res.json.shop, {
     id: 's1', slug: 'wakanda', name: 'Kedai Wakanda', status: 'active', suspendedReason: null,
-    isOpen: true, planCode: 'free', planExpiresAt: null,
+    isOpen: true, planCode: 'free', planExpiresAt: null, storageBytes: 0,
+    plan: {
+      code: 'free', name: 'Percuma', maxProducts: 20, maxCategories: 5, maxBanners: 1,
+      maxStorageBytes: 10485760, customTemplate: false, hideBranding: false,
+    },
   });
 });
 

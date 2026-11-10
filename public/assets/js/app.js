@@ -4,6 +4,9 @@
 import { api } from './api.js';
 import { h, icon, toast } from './ui.js';
 import { renderGoogleButton, googleSignOut } from './google.js';
+import { getConfig } from './config.js';
+import { viewSetup } from './setup.js';
+import { viewSettings } from './settings.js';
 
 const root = document.getElementById('app');
 const state = { me: null };
@@ -35,17 +38,6 @@ function logoSvg() {
   return wrap;
 }
 
-let configPromise = null;
-function getConfig() {
-  if (!configPromise) {
-    configPromise = api('/api/config').catch((err) => {
-      configPromise = null;
-      throw err;
-    });
-  }
-  return configPromise;
-}
-
 // Ralat API biasa: 401 bermaksud sesi tamat, kembali ke skrin login.
 function handleError(err) {
   if (err && err.status === 401) {
@@ -56,6 +48,25 @@ function handleError(err) {
   }
   toast((err && err.message) || 'Ralat tidak dijangka.', 'error');
 }
+
+// Konteks yang dikongsi dengan skrin (setup.js, settings.js): data pengguna dan cara memuat semula.
+const ctx = {
+  get me() {
+    return state.me;
+  },
+  onError: handleError,
+  // Muat semula /api/me dan lukis semula skrin. render:false = kemas kini data sahaja.
+  async reloadMe({ render: doRender = true } = {}) {
+    try {
+      state.me = await api('/api/me');
+    } catch (err) {
+      handleError(err);
+      return false;
+    }
+    if (doRender) render();
+    return true;
+  },
+};
 
 // ---------------------------------------------------------------- boot
 
@@ -230,7 +241,7 @@ function renderSetupShell() {
   setTitle('Setup kedai');
   const logoutBtn = h('button', { type: 'button', class: 'btn btn-secondary btn-sm', onclick: (e) => logout(e.currentTarget) }, icon('keluar'), 'Log keluar');
   root.replaceChildren(
-    h('div', {}, header(logoutBtn), h('main', { class: 'app-main stack', id: 'main' }, viewSetup())),
+    h('div', {}, header(logoutBtn), h('main', { class: 'app-main stack', id: 'main' }, viewSetup(ctx))),
   );
 }
 
@@ -239,17 +250,6 @@ function placeholder(iconName, title, text) {
 }
 
 // ---------------------------------------------------------------- Skrin
-
-function viewSetup() {
-  const user = state.me.user;
-  return h(
-    'div',
-    { class: 'stack' },
-    h('h1', {}, `Hai${user.name ? `, ${user.name}` : ''}`),
-    h('p', { class: 'muted' }, `Anda log masuk sebagai ${user.email}.`),
-    placeholder('binaan', 'Setup kedai', 'Langkah setup kedai (nama, link, nombor WhatsApp dan banner) akan dibuka dalam Fasa 2.'),
-  );
-}
 
 function viewDashboard() {
   setTitle('Utama');
@@ -276,7 +276,7 @@ function viewProduk() {
 
 function viewTetapan() {
   setTitle('Tetapan');
-  return placeholder('tetapan', 'Tetapan kedai', 'Tetapan kedai akan dibina dalam Fasa 2.');
+  return viewSettings(ctx);
 }
 
 function viewLangganan() {

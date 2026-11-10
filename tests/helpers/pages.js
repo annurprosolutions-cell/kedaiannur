@@ -41,8 +41,9 @@ export async function callApi(env, method, path, { headers = {}, body, origin = 
   if (origin && !('Origin' in init.headers)) init.headers.Origin = origin;
   if (origin === null) delete init.headers.Origin;
   if (body !== undefined) {
-    init.body = typeof body === 'string' ? body : JSON.stringify(body);
-    if (!('Content-Type' in init.headers)) init.headers['Content-Type'] = 'application/json';
+    const binary = body instanceof Uint8Array || body instanceof ArrayBuffer;
+    init.body = binary || typeof body === 'string' ? body : JSON.stringify(body);
+    if (!binary && !('Content-Type' in init.headers)) init.headers['Content-Type'] = 'application/json';
   }
   const request = new Request(`https://kedai.test${path}`, init);
   const route = routes.find((r) => r.path === new URL(request.url).pathname);

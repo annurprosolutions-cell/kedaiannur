@@ -22,6 +22,16 @@ const ICONS = {
     ['path', { d: 'M4 21a8 8 0 0116 0' }],
   ],
   keluar: [['path', { d: 'M15 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3M10 17l5-5-5-5M15 12H3' }]],
+  semak: [['path', { d: 'M5 12.5l4.5 4.5L19 7.5' }]],
+  tambah: [['path', { d: 'M12 5v14M5 12h14' }]],
+  padam: [['path', { d: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3' }]],
+  atas: [['path', { d: 'M6 15l6-6 6 6' }]],
+  bawah: [['path', { d: 'M6 9l6 6 6-6' }]],
+  gambar: [
+    ['rect', { x: '3', y: '4', width: '18', height: '16', rx: '2' }],
+    ['circle', { cx: '9', cy: '10', r: '2' }],
+    ['path', { d: 'M21 16l-5-5-8 9' }],
+  ],
   binaan: [
     ['path', { d: 'M2 20h20M5 20V9l7-5 7 5v11' }],
     ['path', { d: 'M9 20v-6h6v6' }],
