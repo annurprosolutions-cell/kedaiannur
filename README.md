@@ -43,6 +43,16 @@ Nama menu dalam dashboard mungkin berbeza sedikit; ikut label semasa.
 4. **Pages.** Workers & Pages, Create, tab Pages, Connect to Git, pilih repo `kedaiannur`.
    - Production branch: `main`
    - Framework preset: None. Build command: kosong. **Build output directory: `public`**
+   - **Mesti projek Pages, bukan Worker.** Kod ini guna Pages Functions (`functions/`). Projek Worker jenis static assets tak boleh
+     ditambah binding D1/R2 (dashboard papar "Bindings cannot be added to a Worker that only has static assets") dan tak menjalankan
+     `functions/`. Butang Create lalai di dashboard kadang-kadang membawa ke Worker; cari tab atau pautan **Pages**.
+   - Kalau repo tak muncul dalam dropdown: GitHub, Settings, Applications, Installed GitHub Apps, **Cloudflare Workers and Pages**,
+     Configure, dan tambah repo di Repository access. Lepas itu taip nama repo dalam kotak Search dan **klik hasilnya**, tunggu
+     Production branch terisi `main` sebelum tekan Connect.
+   - Build output kosong bermaksud seluruh repo dihidang (termasuk `db/`, `lib/`, `tests/`) dan `/` jadi 404. Pastikan `public`.
+   - Banner "disconnected from your Git account" bermaksud push tak akan mencetuskan deployment. Penyelesaian: Settings, Git repository,
+     Disconnect, kemudian Connect semula. Tetapan build, binding dan variable perlu disemak selepas itu.
+   - Tetapan build, binding dan variable hanya terpakai pada deployment **baharu** (push baru, atau Retry deployment).
 5. **Tetapan projek Pages** (Settings):
    - Custom domains: tambah `kedai.annurpro.com`.
    - Bindings: D1 database, nama `DB`, pilih `kedai-db`. R2 bucket, nama `MEDIA`, pilih `kedai-media`.
