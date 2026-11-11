@@ -2,12 +2,13 @@
 //   GET    tetapan kedai sendiri (S-13)
 //   POST   cipta kedai (S-08), satu pengguna satu kedai
 //   PATCH  ubah tetapan (medan dalam senarai putih sahaja)
-// DELETE (padam kedai) dibina dalam Fasa 8.
+//   DELETE padam kedai, semua baris D1 dan objek R2 (F-15, PDPA); body { confirmSlug }
 
 import { fail, failFields, json, readJson } from '../../lib/http.js';
 import { columnFor, validateShopInput } from '../../lib/validate.js';
 import { getShopByOwner, ownerShop, shopResponseData } from '../../lib/shop.js';
-import { CATALOG_FAIL, publishSnapshot } from '../../lib/catalog.js';
+import { CATALOG_FAIL, publishSnapshot, snapshotKey } from '../../lib/catalog.js';
+import { deleteShopObjects } from '../../lib/media.js';
 import { DEFAULT_THEME, LIMITS, MSG as RULE_MSG, isReservedLocally, validateTemplate } from '../../public/assets/js/rules.js';
 
 const BODY_ERROR = 'Format permintaan tidak sah.';
@@ -154,4 +155,27 @@ export async function onRequestPatch({ request, env, data }) {
 
   const r = await shopResponseData(env, data.user);
   return r.error || json(r.body);
+}
+
+export async function onRequestDelete({ request, env, data }) {
+  const parsed = await readJson(request);
+  if (parsed.error) return fail(400, 'badan-tidak-sah', 'Format permintaan tidak sah.');
+  const { shop, error } = await ownerShop(env, data.user); // kedai digantung pun boleh dipadam oleh pemiliknya
+  if (error) return error;
+  if (String(parsed.value.confirmSlug || '').trim().toLowerCase() !== shop.slug.toLowerCase()) {
+    return fail(400, 'pengesahan-salah', 'Taip nama link kedai dengan tepat untuk mengesahkan.');
+  }
+
+  // R2 dahulu: jika gagal, kedai masih wujud dan peniaga boleh cuba semula (tiada objek yatim tanpa rekod).
+  const removed = await deleteShopObjects(env, shop.id);
+  await env.MEDIA.delete(snapshotKey(shop.slug));
+
+  // Rekod audit kekal (tiada data peribadi pelanggan); payments kekal untuk perakaunan dengan shop_id NULL.
+  await env.DB.batch([
+    env.DB
+      .prepare('INSERT INTO audit_log (actor_email, action, shop_id, meta) VALUES (?1, ?2, ?3, ?4)')
+      .bind(data.user.email, 'delete_shop', shop.id, JSON.stringify({ slug: shop.slug, name: shop.name, objects: removed })),
+    env.DB.prepare('DELETE FROM shops WHERE id = ?1 AND owner_user_id = ?2').bind(shop.id, data.user.id),
+  ]);
+  return json({ ok: true, removedObjects: removed });
 }

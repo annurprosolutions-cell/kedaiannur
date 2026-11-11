@@ -44,7 +44,7 @@ test('GET /api/ping tanpa sesi dan tanpa D1', async () => {
 test('GET /api/config pulangkan client id awam sahaja', async () => {
   const res = await callApi(env, 'GET', '/api/config');
   assert.equal(res.status, 200);
-  assert.deepEqual(Object.keys(res.json).sort(), ['googleClientId', 'mediaBaseUrl', 'ok']);
+  assert.deepEqual(Object.keys(res.json).sort(), ['googleClientId', 'mediaBaseUrl', 'ok', 'supportEmail']);
   assert.equal(res.json.googleClientId, CLIENT_ID);
   assert.ok(!res.text.includes('Admin@'), 'senarai superadmin tak boleh bocor');
 });

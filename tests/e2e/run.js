@@ -37,6 +37,8 @@ const TOKEN_E = token('E'); // pengguna dengan kedai untuk ujian tetapan dan ban
 const TOKEN_P = token('P'); // pengguna dengan kedai untuk ujian produk dan kategori (Fasa 3)
 const TOKEN_R = token('R'); // pengguna dengan kedai Pro yang tamat dalam 10 hari (Fasa 5)
 const TOKEN_M = token('M'); // superadmin (Fasa 7); e-mel dalam SUPERADMIN_EMAILS
+const TOKEN_X = token('X'); // pengguna dengan kedai yang akan dipadam (Fasa 8)
+const PADAM_IMG = 'shops/s-x/11111111-2222-4333-8444-555555555555.webp';
 const XSS_NAME = '<img src=x onerror="window.__xss=1">';
 const PNG_1X1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 
@@ -141,7 +143,9 @@ INSERT INTO users (id, google_sub, email, name) VALUES
   ('u-e', 'sub-e', 'tetapan@ujian.test', 'Kak Tetapan'),
   ('u-p', 'sub-p', 'produk@ujian.test', 'Abang Produk'),
   ('u-r', 'sub-r', 'pro@ujian.test', 'Puan Pro'),
-  ('u-m', 'sub-m', 'admin@ujian.test', 'Bos Admin');
+  ('u-m', 'sub-m', 'admin@ujian.test', 'Bos Admin'),
+  ('u-x', 'sub-x', 'padam@ujian.test', 'Cik Padam'),
+  ('u-l', 'sub-l', 'laju@ujian.test', 'Encik Laju');
 INSERT INTO sessions (token_hash, user_id, expires_at) VALUES
   ('${sha(TOKEN_A)}', 'u-a', datetime('now', '+1 day')),
   ('${sha(TOKEN_B)}', 'u-b', datetime('now', '+1 day')),
@@ -149,7 +153,8 @@ INSERT INTO sessions (token_hash, user_id, expires_at) VALUES
   ('${sha(TOKEN_E)}', 'u-e', datetime('now', '+1 day')),
   ('${sha(TOKEN_P)}', 'u-p', datetime('now', '+1 day')),
   ('${sha(TOKEN_R)}', 'u-r', datetime('now', '+1 day')),
-  ('${sha(TOKEN_M)}', 'u-m', datetime('now', '+1 day'));
+  ('${sha(TOKEN_M)}', 'u-m', datetime('now', '+1 day')),
+  ('${sha(TOKEN_X)}', 'u-x', datetime('now', '+1 day'));
 INSERT INTO payments (id, order_no, payer_email, amount_sen, period, quantity, status) VALUES
   ('pay-u', 'BCL-UJI-1', 'tersalah@ujian.test', 5800, 'monthly', 2, 'unmatched');
 INSERT INTO shops (id, owner_user_id, slug, name, whatsapp, description) VALUES
@@ -159,9 +164,23 @@ INSERT INTO shops (id, owner_user_id, slug, name, whatsapp, description) VALUES
   ('s-p', 'u-p', 'kedai-produk', 'Kedai Produk', '60123456789', '');
 INSERT INTO shops (id, owner_user_id, slug, name, whatsapp, description, plan_code, plan_expires_at) VALUES
   ('s-r', 'u-r', 'kedai-pro', 'Kedai Pro', '60198765432', '', 'pro', date('now', '+10 days'));
-`;
+INSERT INTO shops (id, owner_user_id, slug, name, whatsapp, description) VALUES
+  ('s-x', 'u-x', 'kedai-padam', 'Kedai Padam', '60123456789', 'Akan dipadam'),
+  ('s-l', 'u-l', 'kedai-laju', 'Kedai Laju', '60123456789', 'Kedai untuk ukuran LCP');
+INSERT INTO categories (id, shop_id, name) VALUES ('c-x', 's-x', 'Kuih');
+INSERT INTO products (id, shop_id, category_id, name, price_sen, image_key, thumb_key, bytes) VALUES
+  ('p-x', 's-x', 'c-x', 'Karipap Padam', 500, '${PADAM_IMG}', NULL, 10);
+INSERT INTO shop_banners (id, shop_id, image_key, bytes) VALUES
+  ('b-l', 's-l', 'shops/s-l/b_aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee.webp', 1000);
+INSERT INTO products (id, shop_id, name, price_sen, image_key, thumb_key, bytes, sort_order) VALUES
+  ${[1, 2, 3, 4, 5, 6, 7, 8].map((n) => `('p-l${n}', 's-l', 'Produk Laju ${n}', ${1000 + n}, 'shops/s-l/0000000${n}-0000-4000-8000-000000000000.webp', 'shops/s-l/0000000${n}-0000-4000-8000-000000000000_t.webp', 10, ${n})`).join(',\n  ')};`;
   writeFileSync(join(tmp, 'seed.sql'), seed);
   wrangler(['d1', 'execute', 'kedai-db', '--local', '--persist-to', state, '--file', join(tmp, 'seed.sql')], { cwd: cfgDir });
+  // Objek R2 sebenar untuk kedai yang akan dipadam: satu dirujuk produk, satu yatim.
+  writeFileSync(join(tmp, 'img.webp'), PNG_1X1);
+  for (const key of [PADAM_IMG, 'shops/s-x/b_99999999-2222-4333-8444-555555555555.webp']) {
+    wrangler(['r2', 'object', 'put', `kedai-media/${key}`, '--local', '--persist-to', state, '--file', join(tmp, 'img.webp'), '--content-type', 'image/webp'], { cwd: cfgDir });
+  }
 
   const [cmd, base] = wranglerCmd;
   server = spawn(
@@ -173,6 +192,7 @@ INSERT INTO shops (id, owner_user_id, slug, name, whatsapp, description, plan_co
       '--binding', 'SUPERADMIN_EMAILS=admin@ujian.test',
       '--binding', 'SESSION_DAYS=30',
       '--binding', `MEDIA_BASE_URL=${MEDIA}`,
+      '--binding', 'SUPPORT_EMAIL=bantuan@ujian.test',
     ],
     { cwd: ROOT, env: { ...process.env, WRANGLER_SEND_METRICS: 'false' }, stdio: 'ignore', detached: true },
   );
@@ -279,16 +299,50 @@ async function shot(page, name) {
 
 // ================================================================ Fasa 0 dan 1
 
-test('Fasa 0: laman "Hello" dimuatkan di phone 360 px', async () => {
+test('S-01 landing: hero, harga daripada /api/plans, contoh kedai tersembunyi, tiada skrol mendatar', async () => {
   const { context, page } = await newPage();
+  const plansResp = page.waitForResponse((r) => r.url().endsWith('/api/plans'));
   const res = await page.goto(`${BASE}/`);
   assert.equal(res.status(), 200);
   assert.ok(res.headers()['content-security-policy'].includes("frame-ancestors 'none'"));
-  await page.getByRole('heading', { level: 1 }).waitFor();
-  assert.equal(await page.getByRole('link', { name: 'Log masuk peniaga' }).getAttribute('href'), '/app/');
+  await page.getByRole('heading', { level: 1, name: 'Kedai online anda, order terus ke WhatsApp' }).waitFor();
+  assert.equal((await plansResp).status(), 200);
+  const plans = (await (await fetch(`${BASE}/api/plans`)).json()).plans;
+  const pro = plans.find((p) => p.code === 'pro');
+  await page.locator('[data-plan="pro.month"]').getByText(`RM${pro.priceMonthSen / 100}`).waitFor();
+  assert.equal(await page.locator('[data-plan="free.products"]').textContent(), String(plans.find((p) => p.code === 'free').maxProducts));
+  assert.equal(await page.getByRole('link', { name: 'Buka kedai percuma' }).getAttribute('href'), '/app/');
+  assert.equal(await page.getByRole('link', { name: 'Lihat contoh kedai' }).isVisible(), false, '/contoh belum wujud');
+  await page.locator('.site-footer a[href^="mailto:bantuan@ujian.test"]').waitFor();
+  for (const href of ['/privasi', '/terma']) assert.equal(await page.locator(`.site-footer a[href="${href}"]`).count(), 1);
+  await page.locator('.hero-shot img').evaluate((img) => img.decode());
   await noHorizontalScroll(page);
-  await shot(page, '00-hello');
+  await touchTargets(page, '.hero-cta .btn, .site-header .btn');
+  await shot(page, '00-landing');
   await context.close();
+
+  const desk = await newPage({ width: 1280, height: 900 });
+  await desk.page.goto(`${BASE}/`);
+  await desk.page.locator('.hero-shot img').evaluate((img) => img.decode());
+  await noHorizontalScroll(desk.page);
+  await shot(desk.page, '00-landing-desktop');
+  await desk.context.close();
+});
+
+test('Privasi dan terma: halaman statik (bukan Functions), e-mel sokongan daripada SUPPORT_EMAIL', async () => {
+  for (const [path, title] of [['/privasi', 'Dasar Privasi'], ['/terma', 'Terma Perkhidmatan']]) {
+    const { context, page } = await newPage();
+    const res = await page.goto(`${BASE}${path}`);
+    assert.equal(res.status(), 200, path);
+    assert.ok(res.headers()['content-security-policy'], 'header _headers dikenakan (fail statik)');
+    await page.getByRole('heading', { level: 1, name: title }).waitFor();
+    await page.locator('main a[href="mailto:bantuan@ujian.test"]').first().waitFor();
+    await noHorizontalScroll(page);
+    await shot(page, `00-${path.slice(1)}`);
+    await context.close();
+  }
+  const slug = await apiGet('/api/slug-check?slug=terma', TOKEN_B);
+  assert.equal(slug.json.available, false, 'slug terma tak boleh diambil');
 });
 
 test('S-07: tanpa sesi papar login; token ditolak papar "Login tak berjaya"', async () => {
@@ -1207,6 +1261,151 @@ test('S-18: padankan bayaran tak padan, urus slug reserved, bina semula katalog'
   await page.getByRole('button', { name: 'Bina semula semua' }).click();
   await page.getByText(/Selesai: \d+ katalog dibina semula\./).waitFor({ timeout: 30000 });
   await shot(page, '62-admin-selenggara');
+  await context.close();
+});
+
+// ================================================================ Fasa 8
+
+test('S-15 Akaun: eksport JSON, padam kedai dengan pengesahan slug; R2, snapshot dan halaman awam dibuang', async () => {
+  // Pastikan snapshot wujud dahulu supaya pemadaman snapshot benar-benar diuji.
+  const rebuild = await fetch(`${BASE}/api/admin/rebuild-catalogs`, {
+    method: 'POST',
+    headers: { Cookie: `__Host-sid=${TOKEN_M}`, Origin: BASE, 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+  assert.equal(rebuild.status, 200);
+  assert.equal((await fetch(`${BASE}/kedai-padam`)).status, 200);
+  assert.ok(r2Get('catalog/kedai-padam.json').length > 0);
+  assert.ok(r2Get(PADAM_IMG).length > 0);
+
+  const { context, page } = await newPage({ sid: TOKEN_X });
+  await page.goto(`${BASE}/app/#/akaun`);
+  await page.getByRole('heading', { name: 'Data anda' }).waitFor();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Muat turun data saya/ }).click()]);
+  assert.match(download.suggestedFilename(), /^kedai-kedai-padam-\d{4}-\d{2}-\d{2}\.json$/);
+  const data = JSON.parse(readFileSync(await download.path(), 'utf8'));
+  assert.equal(data.akaun.email, 'padam@ujian.test');
+  assert.equal(data.kedai.slug, 'kedai-padam');
+  assert.equal(data.kedai.produk[0].nama, 'Karipap Padam');
+  await page.getByText('Data dimuat turun.').waitFor();
+
+  const del = page.getByRole('button', { name: 'Padam kedai selama-lamanya' });
+  assert.equal(await del.isDisabled(), true);
+  await page.getByLabel('Taip "kedai-padam" untuk sahkan').fill('kedai-salah');
+  assert.equal(await del.isDisabled(), true, 'slug salah: butang kekal dilumpuhkan');
+  await page.getByLabel('Taip "kedai-padam" untuk sahkan').fill('Kedai-Padam ');
+  assert.equal(await del.isDisabled(), false);
+  await noHorizontalScroll(page);
+  await shot(page, '70-akaun');
+
+  // API menolak pengesahan yang salah walaupun UI dipintas.
+  const bad = await fetch(`${BASE}/api/shop`, {
+    method: 'DELETE',
+    headers: { Cookie: `__Host-sid=${TOKEN_X}`, Origin: BASE, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirmSlug: 'wakanda' }),
+  });
+  assert.equal(bad.status, 400);
+
+  page.once('dialog', (d) => d.accept());
+  await del.click();
+  await page.getByRole('heading', { level: 1, name: 'Setup kedai' }).waitFor();
+  assert.equal((await apiGet('/api/me', TOKEN_X)).json.shop, null);
+  assert.throws(() => r2Get(PADAM_IMG), 'gambar produk dipadam');
+  assert.throws(() => r2Get('shops/s-x/b_99999999-2222-4333-8444-555555555555.webp'), 'objek yatim pun dipadam');
+  assert.throws(() => r2Get('catalog/kedai-padam.json'), 'snapshot dipadam');
+  assert.equal((await fetch(`${BASE}/kedai-padam`)).status, 404);
+  assert.equal((await apiGet('/api/me', TOKEN_B)).json.shop.slug, 'wakanda', 'kedai lain tak terjejas');
+  await context.close();
+});
+
+test('IPD LCP halaman kedai: Slow 4G (1.6 Mbps, RTT 150 ms) dan CPU 4x, banner WebP sebenar', async () => {
+  // Gambar sebenar: banner 1600x800 dan gambar produk 400x400, WebP kualiti 0.8 seperti selepas mampatan di browser.
+  const gen = await newPage();
+  const make = (w, h) => gen.page.evaluate(async ([w, h]) => {
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const x = c.getContext('2d');
+    const g = x.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0, '#0f766e');
+    g.addColorStop(1, '#f59e0b');
+    x.fillStyle = g;
+    x.fillRect(0, 0, w, h);
+    for (let i = 0; i < 60; i++) {
+      x.fillStyle = `hsla(${(i * 47) % 360},70%,55%,0.7)`;
+      x.beginPath();
+      x.arc(Math.random() * w, Math.random() * h, 20 + Math.random() * w * 0.12, 0, 7);
+      x.fill();
+    }
+    const img = x.getImageData(0, 0, w, h);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const n = (Math.random() - 0.5) * 14;
+      img.data[i] += n;
+      img.data[i + 1] += n;
+      img.data[i + 2] += n;
+    }
+    x.putImageData(img, 0, 0);
+    const blob = await new Promise((r) => c.toBlob(r, 'image/webp', 0.8));
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
+  }, [w, h]);
+  const banner = Buffer.from(await make(1600, 800));
+  const product = Buffer.from(await make(400, 400));
+  await gen.context.close();
+
+  // Throttle CDP tak terpakai pada request yang dipintas oleh context.route, jadi rangkaian dimodelkan sendiri:
+  // semua respons berkongsi satu pautan 1.6 Mbps (dihantar bergilir), setiap request tambah 1 RTT, dan request
+  // pertama tambah 3 RTT lagi untuk DNS, TCP dan TLS. Saiz HTML/JS/CSS tanpa mampatan (Cloudflare guna brotli),
+  // jadi anggaran ini condong ke arah lebih perlahan.
+  const BW = 1.6e6 / 8; // bait sesaat
+  const RTT = 150;
+  let linkFree = 0;
+  let first = true;
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const throttled = async (bytes) => {
+    const start = Date.now() + RTT + (first ? 3 * RTT : 0);
+    first = false;
+    const done = Math.max(start, linkFree) + (bytes / BW) * 1000;
+    linkFree = done;
+    await sleep(done - Date.now());
+  };
+  const { context, page } = await newPage({ width: 412, height: 823 });
+  await context.route(`${BASE}/**`, async (route) => {
+    const resp = await route.fetch();
+    const body = await resp.body();
+    await throttled(body.length);
+    await route.fulfill({ response: resp, body });
+  });
+  await context.route(`${MEDIA}/shops/**`, async (route) => {
+    const body = route.request().url().includes('/b_') ? banner : product;
+    await throttled(body.length);
+    await route.fulfill({ contentType: 'image/webp', body });
+  });
+  const cdp = await context.newCDPSession(page);
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+
+  await page.goto(`${BASE}/kedai-laju`, { waitUntil: 'load' });
+  await page.locator('.shop-banner').evaluate((img) => (img.complete ? null : new Promise((r) => img.addEventListener('load', r, { once: true }))));
+  await page.waitForTimeout(500);
+  const lcp = await page.evaluate(() => new Promise((resolve) => {
+    new PerformanceObserver((list) => {
+      const e = list.getEntries().at(-1);
+      resolve({ ms: Math.round(e.startTime), el: e.element ? `${e.element.tagName}.${e.element.className}` : '?' });
+    }).observe({ type: 'largest-contentful-paint', buffered: true });
+  }));
+  const nav = await page.evaluate(() => {
+    const n = performance.getEntriesByType('navigation')[0];
+    return { ttfb: Math.round(n.responseStart), html: n.encodedBodySize };
+  });
+  console.log(`# LCP kedai (Slow 4G + CPU 4x): ${lcp.ms} ms, elemen ${lcp.el}; TTFB ${nav.ttfb} ms; HTML ${nav.html} B; banner ${Math.round(banner.length / 1024)} KB; produk ${Math.round(product.length / 1024)} KB`);
+  assert.ok(lcp.ms <= 2500, `LCP ${lcp.ms} ms melebihi 2.5 s`);
+
+  // Troli dengan item berharga sahaja: tiada teks "null" daripada nod kosong.
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+  await page.locator('.p-add').first().click();
+  await page.locator('.cart-bar').click();
+  const sheet = page.getByRole('dialog');
+  await sheet.getByText('Jumlah').waitFor();
+  assert.ok(!/\bnull\b/.test(await sheet.innerText()), await sheet.innerText());
   await context.close();
 });
 

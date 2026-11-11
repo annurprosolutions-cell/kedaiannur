@@ -384,7 +384,9 @@ function start(page) {
         });
         const next = h('button', { type: 'button', class: 'btn btn-theme btn-block' }, 'Teruskan');
         next.addEventListener('click', openCheckout);
-        body.replaceChildren(
+        body.replaceChildren();
+        appendAll(
+          body,
           h('h2', {}, 'Troli'),
           h('ul', { class: 'c-list' }, rows),
           h('div', { class: 'c-sum' }, h('span', {}, 'Jumlah'), h('strong', {}, s.lines.some((l) => l.lineSen !== null) ? formatSen(s.totalSen) : '-')),

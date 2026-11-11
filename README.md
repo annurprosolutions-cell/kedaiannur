@@ -14,7 +14,8 @@ Stack: Cloudflare Pages (frontend statik tanpa build step) + Pages Functions (AP
 | 4 | Halaman kedai awam `/<slug>` (S-02 hingga S-06), troli, hantar order ke WhatsApp, pratonton link, salin dan kongsi link (S-09), fallback 404.html | Kod siap, ujian lulus |
 | 5 | Status pelan (aktif, hampir tamat, toleransi, tamat) dengan notis di dashboard dan Langganan (S-14), templat mesej WhatsApp Pro dengan pratonton, banner berputar Pro, buang branding Pro | Kod siap, ujian lulus |
 | 7 | Panel superadmin `/admin/`: ringkasan kiraan, senarai dan carian kedai (S-16), tetapkan pelan, tambah bulan, gantung (S-17), padankan bayaran, slug reserved, bina semula katalog (S-18), audit log | Kod siap, ujian lulus |
-| 6, 8 | BCL (ditahan atas permintaan), penutup | Belum mula |
+| 8 | Landing page (S-01) dengan tangkapan skrin sebenar, halaman `/privasi` dan `/terma`, eksport data JSON dan padam kedai (S-15), `/api/plans` awam, ukuran LCP | Kod siap, ujian lulus. Teks privasi dan terma ialah draf: semak sebelum launch |
+| 6 | Bayaran BCL dan webhook | Ditahan atas permintaan |
 
 ## Struktur
 
@@ -22,7 +23,7 @@ Stack: Cloudflare Pages (frontend statik tanpa build step) + Pages Functions (AP
 public/            fail statik yang dihidang (build output directory)
   _routes.json     Functions hanya untuk /api/* dan /<slug>; fail statik dikecualikan
   _headers         CSP dan header keselamatan untuk fail statik
-  index.html       halaman Hello (landing penuh dalam Fasa 8)
+  index.html       landing page (S-01); privasi.html dan terma.html di sebelahnya
   app/             dashboard peniaga (S-07 hingga S-15)
   admin/           panel superadmin (Fasa 7)
   assets/          CSS dan modul JS
@@ -30,6 +31,7 @@ functions/api/     Pages Functions (API): auth, me, shop, shop/banners, slug-che
 functions/[slug].js halaman kedai awam
 lib/               kod kongsi untuk Functions (tidak dihidang kepada awam)
 db/0001_init.sql   skema D1 (jalankan sekali dalam Console)
+scripts/           landing-shots.js: jana semula tangkapan skrin landing (public/assets/img/landing)
 tests/             ujian unit (node --test) dan e2e (Playwright + wrangler)
 ```
 
@@ -71,7 +73,7 @@ Nama menu dalam dashboard mungkin berbeza sedikit; ikut label semasa.
      | `MEDIA_BASE_URL` | `https://media.annurpro.com` | Text |
      | `SESSION_DAYS` | `30` | Text |
      | `GRACE_DAYS` | `7` | Text |
-     | `SUPPORT_EMAIL` | e-mel sokongan untuk pautan "Lapor kedai ini" (pilihan; kosong = pautan disembunyikan) | Text |
+     | `SUPPORT_EMAIL` | e-mel sokongan: pautan "Lapor kedai ini", kaki landing, privasi dan terma (wajib sebelum launch; kosong = pautan disembunyikan) | Text |
 
      `BCL_*` hanya diperlukan dalam Fasa 6. Secret dimasukkan terus di sini, jangan tampal dalam chat.
    - Binding `MEDIA` dan bucket `kedai-media` (langkah 3) **diperlukan mulai Fasa 2** untuk muat naik gambar. Tanpa binding,
@@ -181,3 +183,42 @@ baharu kedai itu, jika berumur lebih 6 jam dan tak dirujuk oleh produk atau bann
 - Setiap tindakan (pelan, tambah bulan, gantung, padankan bayaran, slug reserved, bina semula) direkod dalam `audit_log`.
   Membuka tab Bayaran membuang rekod audit lebih 12 bulan.
 - Bina semula katalog berjalan 8 kedai setiap panggilan supaya kekal dalam had CPU dan subrequest Functions percuma.
+
+## Akaun, privasi dan landing (Fasa 8)
+
+- Akaun (S-15): "Muat turun data saya" (`GET /api/account/export`, JSON) dan "Padam kedai" (`DELETE /api/shop` dengan
+  `confirmSlug`). Padam membuang semua objek R2 `shops/<id>/` dan snapshot dahulu, kemudian rekod kedai (produk, kategori
+  dan banner ikut cascade). Rekod bayaran kekal dengan `shop_id` kosong, dan `audit_log` merekod `delete_shop`.
+- `/privasi` dan `/terma` ialah fail statik (dikecualikan dalam `_routes.json`). E-mel sokongan diisi daripada `/api/config`
+  supaya tiada e-mel peribadi dalam repo awam. `terma` juga disekat sebagai slug kedai.
+- Landing: harga diambil daripada `/api/plans` (teks lalai dalam HTML jika API gagal). Butang "Lihat contoh kedai" hanya
+  muncul bila `HEAD /contoh` pulang 200.
+- Tangkapan skrin landing dijana daripada aplikasi sebenar dengan kedai demo:
+
+```bash
+WRANGLER_BIN=<path ke wrangler.js> node scripts/landing-shots.js
+```
+
+- LCP halaman kedai diukur dalam e2e: rangkaian dimodelkan sebagai Slow 4G (1.6 Mbps dikongsi, RTT 150 ms, +3 RTT untuk
+  sambungan pertama) dan CPU diperlahankan 4x, dengan banner WebP 1600x800 sebenar (~115 KB). Keputusan terakhir sekitar 1.9 s
+  (sasaran 2.5 s). Ini anggaran makmal pada `wrangler pages dev`; semak semula dengan PageSpeed Insights selepas launch.
+
+## Senarai semak launch (IPD seksyen 9)
+
+Buat semua ini di dashboard, bukan dalam kod. Jangan tampal token atau secret dalam chat atau commit.
+
+1. **Domain**: `kedai.annurpro.com` (Pages) dan `media.annurpro.com` (R2) aktif dengan HTTPS.
+2. **CORS R2** untuk `kedai-media` (lihat bahagian halaman kedai awam) supaya fallback 404.html berfungsi.
+3. **Pemboleh ubah Pages (Production)**: `GOOGLE_CLIENT_ID`, `SUPERADMIN_EMAILS`, `MEDIA_BASE_URL`, `SUPPORT_EMAIL`, `SESSION_DAYS`.
+   Binding `DB` dan `MEDIA` ada untuk Production.
+4. **Google OAuth consent screen**: isi Home page `https://kedai.annurpro.com/`, Privacy policy
+   `https://kedai.annurpro.com/privasi`, Terms `https://kedai.annurpro.com/terma`, kemudian tukar ke **In production**.
+   Authorized JavaScript origins mesti ada `https://kedai.annurpro.com`.
+5. **Semak teks privasi dan terma** (draf, terutamanya senarai produk dilarang dan polisi bayaran balik) dan kemas kini tarikh.
+6. **Kedai demo `contoh`**: log masuk dengan akaun anda sendiri dan cipta kedai dengan slug `contoh` *sebelum* launch, supaya
+   orang lain tak boleh mengambil slug itu. Butang "Lihat contoh kedai" di landing muncul secara automatik.
+7. **2FA** pada akaun Cloudflare, GitHub dan Google yang digunakan.
+8. **Ujian live**: log masuk di phone, cipta produk dengan gambar, buka `/<slug>`, hantar order ke WhatsApp, eksport data,
+   kongsi link di WhatsApp untuk semak pratonton (OG).
+9. **Fasa 6 (BCL)**: bila disambung semula, letak token BCL dan kunci webhook terus dalam tetapan Pages (Encrypted), bukan dalam kod.
+10. **PageSpeed Insights** untuk satu kedai sebenar (mobile) dan rekod LCP.

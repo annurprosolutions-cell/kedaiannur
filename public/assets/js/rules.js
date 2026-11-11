@@ -54,8 +54,9 @@ export const MSG = {
   namaKategori: `Nama kategori mesti 1 hingga ${LIMITS.categoryNameMax} aksara.`,
 };
 
-// Slug yang tak boleh digunakan walaupun tiada dalam jadual reserved_slugs: ia bertembung dengan fail statik di akar.
-const EXTRA_RESERVED = new Set(['index', '404']);
+// Slug yang tak boleh digunakan walaupun tiada dalam jadual reserved_slugs: ia bertembung dengan fail statik di akar
+// (index.html, 404.html, terma.html). privasi sudah ada dalam reserved_slugs.
+const EXTRA_RESERVED = new Set(['index', '404', 'terma']);
 
 export function isReservedLocally(slug) {
   return EXTRA_RESERVED.has(slug);

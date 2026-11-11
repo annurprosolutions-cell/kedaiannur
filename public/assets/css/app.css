@@ -127,3 +127,6 @@ select.input { appearance: auto; background: var(--surface); }
 .plan-table tbody th { font-weight: 600; }
 .pay-list { list-style: none; margin: 0; padding: 0; }
 .pay-list li { display: flex; justify-content: space-between; gap: var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--border); }
+
+/* ---- Fasa 8: akaun ---- */
+.danger-zone { border-color: #fecaca; }

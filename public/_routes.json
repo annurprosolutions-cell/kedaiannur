@@ -17,6 +17,10 @@
     "/admin/*",
     "/assets/*",
     "/shop",
-    "/shop.html"
+    "/shop.html",
+    "/privasi",
+    "/privasi.html",
+    "/terma",
+    "/terma.html"
   ]
 }

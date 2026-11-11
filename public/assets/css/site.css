@@ -1,0 +1,63 @@
+/* Landing page (S-01) dan halaman undang-undang. Mobile-first, tiada font luar. */
+
+.site-header { position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--border); }
+.site-header .inner { max-width: 1040px; margin: 0 auto; height: 56px; padding: 0 var(--s4); display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.site-header .brand svg { color: var(--primary); }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 var(--s4); }
+.section { padding: var(--s6) 0; }
+.section h2 { font-size: 24px; margin-bottom: var(--s4); }
+
+.hero { display: grid; gap: var(--s5); align-items: center; padding: var(--s5) 0 var(--s6); }
+.hero h1 { font-size: 32px; line-height: 1.15; margin-bottom: var(--s3); }
+.hero .lead { font-size: 18px; color: var(--muted); }
+.hero-cta { display: flex; flex-wrap: wrap; gap: var(--s3); margin-top: var(--s4); }
+.hero-cta .btn { flex: 1 1 200px; max-width: 340px; }
+.hero .caption { margin-top: var(--s3); }
+.hero-shot { justify-self: center; width: 100%; max-width: 300px; }
+@media (min-width: 840px) {
+  .hero { grid-template-columns: 1.2fr 1fr; }
+  .hero h1 { font-size: 44px; }
+}
+.phone-shot { display: block; width: 100%; height: auto; border-radius: 28px; border: 8px solid #0f172a; background: #0f172a; box-shadow: 0 16px 40px rgba(15, 23, 42, 0.2); }
+
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s3); counter-reset: step; }
+@media (min-width: 840px) { .steps { grid-template-columns: repeat(3, 1fr); } }
+.steps li { counter-increment: step; }
+.steps li::before {
+  content: counter(step); display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px;
+  border-radius: 50%; background: var(--primary); color: #fff; font-weight: 700; margin-bottom: var(--s2);
+}
+.steps h3 { margin-bottom: var(--s1); }
+
+.features { display: grid; gap: var(--s3); }
+@media (min-width: 640px) { .features { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .features { grid-template-columns: repeat(3, 1fr); } }
+.features p { margin: 0; color: var(--muted); }
+
+.shots { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(220px, 260px); gap: var(--s4); overflow-x: auto; padding-bottom: var(--s2); scroll-snap-type: x mandatory; }
+.shots figure { margin: 0; scroll-snap-align: start; }
+.shots figcaption { text-align: center; font-size: 14px; color: var(--muted); margin-top: var(--s2); }
+
+.pricing { display: grid; gap: var(--s4); }
+@media (min-width: 840px) { .pricing { grid-template-columns: 1fr 1fr; } }
+.price { font-size: 32px; font-weight: 800; }
+.price small { font-size: 15px; font-weight: 600; color: var(--muted); }
+.plan-pro { border: 2px solid var(--primary); }
+.ticks { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--s2); }
+.ticks li { padding-left: 28px; position: relative; }
+.ticks li::before { content: ""; position: absolute; left: 4px; top: 6px; width: 12px; height: 7px; border-left: 2px solid var(--success); border-bottom: 2px solid var(--success); transform: rotate(-45deg); }
+
+.faq details { border-bottom: 1px solid var(--border); padding: var(--s3) 0; }
+.faq summary { font-weight: 600; cursor: pointer; min-height: 32px; }
+.faq details p { margin: var(--s2) 0 0; color: var(--muted); }
+
+.site-footer { border-top: 1px solid var(--border); padding: var(--s5) 0; font-size: 14px; color: var(--muted); }
+.site-footer .inner { display: flex; flex-wrap: wrap; gap: var(--s3) var(--s5); justify-content: space-between; }
+.site-footer nav { display: flex; flex-wrap: wrap; gap: var(--s4); }
+
+/* halaman undang-undang */
+.legal { max-width: 760px; margin: 0 auto; padding: var(--s5) var(--s4) var(--s6); }
+.legal h1 { font-size: 28px; }
+.legal h2 { font-size: 20px; margin-top: var(--s5); }
+.legal li { margin-bottom: var(--s2); }
+.legal .updated { color: var(--muted); }

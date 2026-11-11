@@ -365,6 +365,69 @@ function viewLangganan() {
   return viewBilling(ctx);
 }
 
+// S-15: eksport data (JSON) dan padam kedai beserta semua gambar (F-15, PDPA).
+function accountData(shop) {
+  const exportBtn = h('button', { type: 'button', class: 'btn btn-secondary btn-block' }, icon('salin'), h('span', {}, 'Muat turun data saya (JSON)'));
+  exportBtn.addEventListener('click', async () => {
+    exportBtn.disabled = true;
+    try {
+      const res = await fetch('/api/account/export', { credentials: 'same-origin' });
+      if (res.status === 401) return handleError({ status: 401 });
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const name = (/filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '') || [])[1] || 'kedai-eksport.json';
+      const url = URL.createObjectURL(blob);
+      const a = h('a', { href: url, download: name, hidden: true });
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      toast('Data dimuat turun.', 'success');
+    } catch {
+      toast('Eksport tak berjaya. Cuba lagi.', 'error');
+    } finally {
+      exportBtn.disabled = false;
+    }
+  });
+
+  const confirmIn = h('input', { class: 'input', type: 'text', id: 'del-confirm', autocomplete: 'off', autocapitalize: 'none', spellcheck: 'false', placeholder: shop.slug });
+  const delBtn = h('button', { type: 'button', class: 'btn btn-danger btn-block', disabled: true }, icon('padam'), h('span', {}, 'Padam kedai selama-lamanya'));
+  confirmIn.addEventListener('input', () => {
+    delBtn.disabled = confirmIn.value.trim().toLowerCase() !== shop.slug.toLowerCase();
+  });
+  delBtn.addEventListener('click', async () => {
+    if (!window.confirm(`Padam "${shop.name}" sekarang? Tindakan ini tak boleh dibatalkan.`)) return;
+    delBtn.disabled = true;
+    delBtn.lastChild.textContent = 'Sedang memadam...';
+    try {
+      await api('/api/shop', { method: 'DELETE', body: { confirmSlug: confirmIn.value.trim() } });
+      toast('Kedai dipadam. Semua produk dan gambar telah dibuang.', 'success');
+      history.replaceState(null, '', '/app/');
+      await ctx.reloadMe();
+    } catch (err) {
+      delBtn.disabled = false;
+      delBtn.lastChild.textContent = 'Padam kedai selama-lamanya';
+      handleError(err);
+    }
+  });
+
+  return h(
+    'div',
+    { class: 'stack' },
+    h('section', { class: 'card stack-sm' }, h('h2', {}, 'Data anda'), h('p', { class: 'muted' }, 'Muat turun salinan maklumat akaun, kedai, kategori, produk dan bayaran dalam format JSON.'), exportBtn),
+    h(
+      'section',
+      { class: 'card stack-sm danger-zone' },
+      h('h2', {}, 'Padam kedai'),
+      h('p', { class: 'muted' }, `Semua produk, kategori, banner dan gambar akan dipadam serta-merta, dan link kedai.annurpro.com/${shop.slug} akan berhenti berfungsi. Rekod bayaran langganan disimpan untuk perakaunan. Akaun Google anda kekal dan boleh membuka kedai baharu.`),
+      h('label', { for: 'del-confirm', class: 'd-label' }, `Taip "${shop.slug}" untuk sahkan`),
+      confirmIn,
+      delBtn,
+    ),
+    h('p', { class: 'caption' }, h('a', { href: '/privasi', target: '_blank', rel: 'noopener' }, 'Dasar privasi'), ' · ', h('a', { href: '/terma', target: '_blank', rel: 'noopener' }, 'Terma penggunaan')),
+  );
+}
+
 function viewAkaun() {
   setTitle('Akaun');
   const user = state.me.user;
@@ -378,7 +441,7 @@ function viewAkaun() {
       h('div', { class: 'profile-row' }, h('span', { class: 'label' }, 'Nama'), h('span', { class: 'value' }, user.name || '-')),
       h('div', { class: 'profile-row' }, h('span', { class: 'label' }, 'E-mel Google'), h('span', { class: 'value' }, user.email)),
     ),
-    h('p', { class: 'caption' }, 'Eksport data dan padam kedai akan tersedia dalam Fasa 8.'),
+    accountData(state.me.shop),
     h('button', { type: 'button', class: 'btn btn-secondary btn-block', onclick: (e) => logout(e.currentTarget) }, icon('keluar'), 'Log keluar'),
   );
 }

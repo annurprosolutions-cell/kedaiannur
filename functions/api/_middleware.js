@@ -7,7 +7,7 @@ import { userFromRequest, isSuperadmin } from '../../lib/session.js';
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 // Laluan yang tidak memerlukan sesi.
-const PUBLIC_EXACT = new Set(['/api/ping', '/api/config', '/api/auth/google', '/api/auth/logout']);
+const PUBLIC_EXACT = new Set(['/api/ping', '/api/config', '/api/plans', '/api/auth/google', '/api/auth/logout']);
 const PUBLIC_PREFIX = ['/api/webhooks/']; // webhook BCL (Fasa 6) disahkan dengan kunci dalam path
 
 // Laluan mutasi yang menerima badan bukan JSON (gambar binari, Fasa 2).

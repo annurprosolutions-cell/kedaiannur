@@ -3,24 +3,181 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Kedai AnnurPro</title>
-  <meta name="description" content="Katalog digital untuk peniaga kecil. Pelanggan pilih produk dan hantar order terus ke WhatsApp anda.">
+  <title>Kedai AnnurPro: katalog online, order terus ke WhatsApp</title>
+  <meta name="description" content="Buat kedai online dalam 5 minit. Senaraikan produk, kongsi satu link, dan pelanggan hantar order siap tersusun ke WhatsApp anda. Percuma untuk bermula.">
+  <link rel="canonical" href="https://kedai.annurpro.com/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Kedai AnnurPro">
+  <meta property="og:title" content="Kedai AnnurPro: katalog online, order terus ke WhatsApp">
+  <meta property="og:description" content="Senaraikan produk, kongsi satu link, dan terima order siap tersusun di WhatsApp. Percuma untuk bermula.">
+  <meta property="og:url" content="https://kedai.annurpro.com/">
+  <meta property="og:image" content="https://kedai.annurpro.com/assets/og-default.png">
+  <meta property="og:locale" content="ms_MY">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preload" as="image" href="/assets/img/landing/kedai.webp" fetchpriority="high">
   <link rel="stylesheet" href="/assets/css/base.css">
   <link rel="stylesheet" href="/assets/css/app.css">
+  <link rel="stylesheet" href="/assets/css/site.css">
+  <script type="module" src="/assets/js/site.js"></script>
 </head>
 <body>
-  <main class="login-page">
-    <div class="card login-card stack">
-      <span class="brand">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#0F766E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l2-5h14l2 5M3 9v11h18V9M3 9a3 3 0 006 0 3 3 0 006 0 3 3 0 006 0M9 20v-6h6v6"/></svg>
-        <span>Kedai AnnurPro</span>
-      </span>
-      <h1>Kedai online anda, order terus ke WhatsApp</h1>
-      <p class="muted">Tambah produk, kongsi satu link, dan pelanggan hantar order siap tersusun ke WhatsApp anda.</p>
-      <p class="caption">Sistem sedang dibina. Halaman penuh akan dibuka tidak lama lagi.</p>
-      <a class="btn btn-block" href="/app/">Log masuk peniaga</a>
+  <header class="site-header">
+    <div class="inner">
+      <a class="brand" href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l2-5h14l2 5M3 9v11h18V9M3 9a3 3 0 006 0 3 3 0 006 0 3 3 0 006 0M9 20v-6h6v6"/></svg><span>Kedai AnnurPro</span></a>
+      <a class="btn btn-secondary" href="/app/">Log masuk</a>
     </div>
+  </header>
+
+  <main>
+    <section class="wrap hero">
+      <div>
+        <h1>Kedai online anda, order terus ke WhatsApp</h1>
+        <p class="lead">Senaraikan produk, kongsi satu link, dan pelanggan hantar order yang siap tersusun ke WhatsApp anda. Tak perlu website, tak perlu app.</p>
+        <div class="hero-cta">
+          <a class="btn" href="/app/">Buka kedai percuma</a>
+          <a class="btn btn-secondary" href="/contoh" data-demo hidden>Lihat contoh kedai</a>
+        </div>
+        <p class="caption">Log masuk dengan akaun Google. Tiada kad kredit diperlukan.</p>
+      </div>
+      <div class="hero-shot">
+        <img class="phone-shot" src="/assets/img/landing/kedai.webp" width="360" height="740" alt="Contoh halaman kedai di phone: banner, kategori dan grid produk dengan harga" fetchpriority="high">
+      </div>
+    </section>
+
+    <section class="section" id="cara" aria-labelledby="cara-h">
+      <div class="wrap">
+        <h2 id="cara-h">Cara ia berfungsi</h2>
+        <ol class="steps">
+          <li class="card">
+            <h3>Setup kedai</h3>
+            <p class="muted">Isi nama kedai, pilih link (contoh: kedai.annurpro.com/kuih-mak-teh) dan nombor WhatsApp. Siap dalam beberapa minit.</p>
+          </li>
+          <li class="card">
+            <h3>Tambah produk</h3>
+            <p class="muted">Ambil gambar terus dari phone, letak harga dan kategori. Gambar dikecilkan secara automatik supaya kedai laju dibuka.</p>
+          </li>
+          <li class="card">
+            <h3>Kongsi link, terima order</h3>
+            <p class="muted">Pelanggan pilih produk dan tekan hantar. Anda terima mesej WhatsApp dengan senarai item, kuantiti dan jumlah.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="shot-h">
+      <div class="wrap">
+        <h2 id="shot-h">Apa yang pelanggan dan anda nampak</h2>
+        <div class="shots" tabindex="0" aria-label="Tangkapan skrin aplikasi">
+          <figure>
+            <img class="phone-shot" src="/assets/img/landing/troli.webp" width="360" height="740" loading="lazy" alt="Troli pelanggan dengan kuantiti, nota setiap item dan jumlah">
+            <figcaption>Troli pelanggan</figcaption>
+          </figure>
+          <figure>
+            <img class="phone-shot" src="/assets/img/landing/hantar.webp" width="360" height="740" loading="lazy" alt="Pratonton mesej order sebelum dihantar ke WhatsApp">
+            <figcaption>Mesej order ke WhatsApp</figcaption>
+          </figure>
+          <figure>
+            <img class="phone-shot" src="/assets/img/landing/dashboard.webp" width="360" height="740" loading="lazy" alt="Dashboard peniaga dengan butang kongsi link dan penggunaan pelan">
+            <figcaption>Dashboard peniaga</figcaption>
+          </figure>
+          <figure>
+            <img class="phone-shot" src="/assets/img/landing/produk.webp" width="360" height="740" loading="lazy" alt="Senarai produk dengan suis ada stok dan butang susun">
+            <figcaption>Urus produk</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="ciri-h">
+      <div class="wrap">
+        <h2 id="ciri-h">Ciri-ciri</h2>
+        <div class="features">
+          <div class="card"><h3>Order tersusun</h3><p>Setiap order sampai dengan nama item, kuantiti, nota dan jumlah harga. Tak perlu tanya semula "nak berapa?".</p></div>
+          <div class="card"><h3>Urus dari phone</h3><p>Tambah produk, tukar harga, tanda habis stok, atau tutup kedai sementara. Semua dari phone.</p></div>
+          <div class="card"><h3>Kategori dan carian</h3><p>Pelanggan cari produk atau tapis ikut kategori. Sesuai untuk menu yang panjang.</p></div>
+          <div class="card"><h3>Laju di line perlahan</h3><p>Halaman kedai ringan dan gambar dikecilkan, jadi masih boleh dibuka dengan data mobile yang lemah.</p></div>
+          <div class="card"><h3>Banner dan warna tema</h3><p>Letak banner promosi dan pilih warna kedai. Pelan Pro boleh pasang sehingga 5 banner yang berputar.</p></div>
+          <div class="card"><h3>Data anda milik anda</h3><p>Muat turun semua data kedai bila-bila masa, atau padam kedai sepenuhnya. Kami tidak simpan data pelanggan anda.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="harga" aria-labelledby="harga-h">
+      <div class="wrap">
+        <h2 id="harga-h">Harga</h2>
+        <div class="pricing">
+          <div class="card stack">
+            <div>
+              <h3>Percuma</h3>
+              <p class="price">RM0 <small>selamanya</small></p>
+            </div>
+            <ul class="ticks">
+              <li><span data-plan="free.products">20</span> produk</li>
+              <li><span data-plan="free.categories">5</span> kategori</li>
+              <li><span data-plan="free.banners">1</span> banner</li>
+              <li><span data-plan="free.storage">10 MB</span> storan gambar</li>
+              <li>Order ke WhatsApp tanpa had</li>
+            </ul>
+            <a class="btn btn-secondary btn-block" href="/app/">Mula percuma</a>
+          </div>
+          <div class="card stack plan-pro">
+            <div>
+              <h3>Pro</h3>
+              <p class="price"><span data-plan="pro.month">RM29</span> <small>sebulan</small></p>
+              <p class="caption">atau <span data-plan="pro.year">RM290</span> setahun</p>
+            </div>
+            <ul class="ticks">
+              <li><span data-plan="pro.products">500</span> produk</li>
+              <li><span data-plan="pro.categories">50</span> kategori</li>
+              <li><span data-plan="pro.banners">5</span> banner berputar</li>
+              <li><span data-plan="pro.storage">150 MB</span> storan gambar</li>
+              <li>Templat mesej WhatsApp sendiri</li>
+              <li>Tiada tulisan "Dikuasakan oleh Kedai AnnurPro"</li>
+            </ul>
+            <a class="btn btn-block" href="/app/">Mula dan naik taraf kemudian</a>
+          </div>
+        </div>
+        <p class="caption">Bayaran sekali untuk tempoh yang dipilih, tiada caj automatik. Bila Pro tamat, kedai kekal dibuka dengan had pelan Percuma.</p>
+      </div>
+    </section>
+
+    <section class="section faq" aria-labelledby="faq-h">
+      <div class="wrap">
+        <h2 id="faq-h">Soalan lazim</h2>
+        <details>
+          <summary>Pelanggan perlu daftar akaun ke?</summary>
+          <p>Tidak. Pelanggan cuma buka link kedai, pilih produk dan tekan hantar. Order dihantar melalui WhatsApp mereka sendiri.</p>
+        </details>
+        <details>
+          <summary>Pelanggan bayar macam mana?</summary>
+          <p>Bayaran dibuat terus antara anda dan pelanggan, contohnya pindahan bank, DuitNow atau tunai semasa ambil barang. Sistem ini tidak memproses bayaran pelanggan dan tidak mengambil komisen.</p>
+        </details>
+        <details>
+          <summary>Order disimpan di mana?</summary>
+          <p>Dalam chat WhatsApp anda. Kami tidak menyimpan order atau maklumat pelanggan di server kami.</p>
+        </details>
+        <details>
+          <summary>Perlu install app ke?</summary>
+          <p>Tidak. Dashboard peniaga dan halaman kedai dibuka melalui browser di phone atau komputer.</p>
+        </details>
+        <details>
+          <summary>Apa jadi bila pelan Pro tamat?</summary>
+          <p>Ada tempoh tangguh 7 hari. Selepas itu kedai kembali ke had pelan Percuma. Produk dan gambar tidak dipadam; anda boleh naik taraf semula bila-bila masa.</p>
+        </details>
+        <details>
+          <summary>Boleh tutup atau padam kedai?</summary>
+          <p>Boleh. Tutup sementara di Tetapan, atau padam kedai dan semua gambar di halaman Akaun. Anda juga boleh muat turun salinan data dahulu.</p>
+        </details>
+      </div>
+    </section>
   </main>
+
+  <footer class="site-footer">
+    <div class="wrap inner">
+      <span>Kedai AnnurPro<span data-support hidden>. Hubungi: <span data-support-email></span></span></span>
+      <nav aria-label="Pautan kaki"><a href="/privasi">Privasi</a><a href="/terma">Terma</a><a href="/app/">Log masuk</a></nav>
+    </div>
+  </footer>
 </body>
 </html>

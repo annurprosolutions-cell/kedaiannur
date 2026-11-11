@@ -9,6 +9,8 @@ export function onRequestGet({ env }) {
       ok: true,
       googleClientId: env.GOOGLE_CLIENT_ID || '',
       mediaBaseUrl: env.MEDIA_BASE_URL || '',
+      // E-mel sokongan untuk landing, privasi dan terma; tak ditulis dalam repo awam.
+      supportEmail: /^[^\s@<>"']+@[^\s@<>"']+$/.test(String(env.SUPPORT_EMAIL || '').trim()) ? String(env.SUPPORT_EMAIL).trim() : '',
     },
     200,
     { 'Cache-Control': 'public, max-age=300' },
