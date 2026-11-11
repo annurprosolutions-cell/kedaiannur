@@ -109,7 +109,7 @@ test('buang semua banner: senarai kosong, R2 dibersihkan, storage kembali 0', as
   assert.equal(res.status, 200);
   assert.deepEqual(res.json.banners, []);
   assert.equal(storage(), 0);
-  assert.equal(env.MEDIA.keys().length, 0);
+  assert.equal(env.MEDIA.keys().filter((k) => k.startsWith('shops/')).length, 0);
 });
 
 test('PUT berulang dengan senarai sama idempotent: tiada pertambahan storage', async () => {

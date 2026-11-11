@@ -60,3 +60,62 @@
 .profile-row { display: flex; flex-direction: column; gap: 2px; }
 .profile-row .label { font-size: 13px; color: var(--muted); }
 .profile-row .value { font-weight: 600; overflow-wrap: anywhere; }
+
+/* ---- Fasa 3: dashboard, produk, kategori ---- */
+.shop-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.shop-head h2 { margin: 0; overflow-wrap: anywhere; }
+.shop-link { margin: 0; overflow-wrap: anywhere; }
+
+.meter-head { display: flex; justify-content: space-between; gap: var(--s3); font-weight: 600; font-size: 15px; margin-bottom: 6px; }
+.meter-bar { height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; }
+.meter-bar span { display: block; height: 100%; background: var(--primary); }
+.meter-hot span { background: var(--warning); }
+
+.shortcuts { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s2); }
+.shortcuts .btn { flex-direction: column; gap: 4px; padding: var(--s2); min-height: 64px; font-size: 14px; }
+
+.back-link { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; text-decoration: none; }
+
+.chips { display: flex; gap: var(--s2); overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip {
+  flex: none; min-height: 40px; padding: 0 var(--s4); border-radius: 999px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--secondary); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.chip[aria-pressed="true"] { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+.product-list, .cat-list { list-style: none; margin: 0; padding: 0; }
+.product-list { display: flex; flex-direction: column; gap: var(--s2); }
+.product-row {
+  display: flex; align-items: center; gap: var(--s2);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--s2);
+}
+.product-link { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--s3); color: inherit; text-decoration: none; min-height: 56px; }
+.thumb { flex: none; width: 56px; height: 56px; border-radius: var(--s2); object-fit: cover; background: var(--border); }
+.thumb-ph { display: inline-flex; align-items: center; justify-content: center; color: var(--muted); background: var(--border); }
+.thumb-ph svg { width: 24px; height: 24px; }
+.product-info { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.product-name { font-weight: 600; font-size: 15px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.product-price { font-weight: 700; color: var(--primary); }
+.product-tags { display: flex; flex-wrap: wrap; gap: 4px var(--s2); align-items: center; }
+.product-actions { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: var(--s1); }
+.move-btns { display: flex; gap: 2px; }
+.empty-row { padding: var(--s4); text-align: center; }
+.badge-warning { background: var(--warning-bg); color: #78350f; }
+
+
+.image-field { display: grid; grid-template-columns: 112px 1fr; gap: var(--s3); align-items: start; }
+.image-preview img, .image-preview .thumb-ph.big {
+  width: 112px; height: 112px; border-radius: var(--radius); object-fit: cover; display: flex;
+}
+.image-preview .thumb-ph.big svg { width: 36px; height: 36px; }
+.image-field .btn { width: 100%; padding: 0 var(--s3); }
+select.input { appearance: auto; background: var(--surface); }
+
+.add-row { display: grid; grid-template-columns: 1fr auto; gap: var(--s2); }
+.cat-list { padding: 0; }
+.cat-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); padding: var(--s2) var(--s3); min-height: 60px; }
+.cat-row + .cat-row { border-top: 1px solid var(--border); }
+.cat-name { font-weight: 600; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+.cat-actions { display: flex; gap: 2px; flex: none; }
+.cat-row.editing .input { flex: 1; }

@@ -24,6 +24,10 @@ export const LIMITS = {
   waMin: 9,
   waMax: 15,
   slugChangesMax: 3,
+  productNameMax: 80,
+  productDescMax: 500,
+  categoryNameMax: 40,
+  priceMaxSen: 99999999, // RM999,999.99
 };
 
 export const MSG = {
@@ -33,6 +37,10 @@ export const MSG = {
   whatsapp: 'Nombor WhatsApp tak sah. Contoh: 0123456789',
   warna: 'Pilih salah satu warna yang disediakan.',
   boolean: 'Nilai tak sah.',
+  namaProduk: `Nama produk mesti 1 hingga ${LIMITS.productNameMax} aksara.`,
+  peneranganProduk: `Penerangan produk maksimum ${LIMITS.productDescMax} aksara.`,
+  harga: 'Harga tak sah. Contoh: 12.50, atau kosongkan untuk "Hubungi untuk harga".',
+  namaKategori: `Nama kategori mesti 1 hingga ${LIMITS.categoryNameMax} aksara.`,
 };
 
 // Slug yang tak boleh digunakan walaupun tiada dalam jadual reserved_slugs: ia bertembung dengan fail statik di akar.
@@ -116,4 +124,30 @@ export function cleanText(value, { multiline = false } = {}) {
 
 export function isThemeColor(hex) {
   return THEME_COLORS.some((c) => c.hex === hex);
+}
+
+/**
+ * Tukar teks harga kepada sen: "12" -> 1200, "12.5" -> 1250, "RM 1,200.00" -> 120000.
+ * Teks kosong -> null ("Hubungi untuk harga"). Pulangkan undefined jika tak sah.
+ */
+export function parsePriceToSen(input) {
+  const s = String(input ?? '').trim().replace(/^rm\s*/i, '').replace(/,/g, '');
+  if (!s) return null;
+  if (!/^\d+(\.\d{1,2})?$/.test(s)) return undefined;
+  const [whole, frac = ''] = s.split('.');
+  const sen = Number(whole) * 100 + Number(frac.padEnd(2, '0'));
+  return Number.isSafeInteger(sen) && sen <= LIMITS.priceMaxSen ? sen : undefined;
+}
+
+// 1250 -> "RM12.50"; 120000 -> "RM1,200.00"; null -> "Hubungi untuk harga"
+export function formatSen(sen) {
+  if (sen === null || sen === undefined) return 'Hubungi untuk harga';
+  const ringgit = Math.floor(sen / 100).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `RM${ringgit}.${String(sen % 100).padStart(2, '0')}`;
+}
+
+// 1250 -> "12.50" untuk diisi semula dalam borang; null -> ""
+export function senToInput(sen) {
+  if (sen === null || sen === undefined) return '';
+  return `${Math.floor(sen / 100)}.${String(sen % 100).padStart(2, '0')}`;
 }

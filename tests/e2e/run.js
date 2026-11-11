@@ -34,6 +34,7 @@ const TOKEN_A = token('A'); // pengguna tanpa kedai, nama mengandungi HTML (ujia
 const TOKEN_B = token('B'); // pengguna dengan kedai (dashboard)
 const TOKEN_W = token('W'); // pengguna tanpa kedai untuk wizard
 const TOKEN_E = token('E'); // pengguna dengan kedai untuk ujian tetapan dan banner
+const TOKEN_P = token('P'); // pengguna dengan kedai untuk ujian produk dan kategori (Fasa 3)
 const XSS_NAME = '<img src=x onerror="window.__xss=1">';
 const PNG_1X1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 
@@ -135,16 +136,19 @@ INSERT INTO users (id, google_sub, email, name) VALUES
   ('u-b', 'sub-b', 'wakanda@ujian.test', 'Mak Wakanda'),
   ('u-w', 'sub-w', 'wizard@ujian.test', 'Mak Cik Wizard'),
   ('u-d', 'sub-d', 'kopi@ujian.test', 'Pak Kopi'),
-  ('u-e', 'sub-e', 'tetapan@ujian.test', 'Kak Tetapan');
+  ('u-e', 'sub-e', 'tetapan@ujian.test', 'Kak Tetapan'),
+  ('u-p', 'sub-p', 'produk@ujian.test', 'Abang Produk');
 INSERT INTO sessions (token_hash, user_id, expires_at) VALUES
   ('${sha(TOKEN_A)}', 'u-a', datetime('now', '+1 day')),
   ('${sha(TOKEN_B)}', 'u-b', datetime('now', '+1 day')),
   ('${sha(TOKEN_W)}', 'u-w', datetime('now', '+1 day')),
-  ('${sha(TOKEN_E)}', 'u-e', datetime('now', '+1 day'));
+  ('${sha(TOKEN_E)}', 'u-e', datetime('now', '+1 day')),
+  ('${sha(TOKEN_P)}', 'u-p', datetime('now', '+1 day'));
 INSERT INTO shops (id, owner_user_id, slug, name, whatsapp, description) VALUES
   ('s-b', 'u-b', 'wakanda', 'Kedai Wakanda', '60123456789', ''),
   ('s-d', 'u-d', 'kopi-o', 'Kopi O Pak Kopi', '60111111111', ''),
-  ('s-e', 'u-e', 'tetapan-uji', 'Kedai Tetapan', '60123456789', 'Penerangan asal');
+  ('s-e', 'u-e', 'tetapan-uji', 'Kedai Tetapan', '60123456789', 'Penerangan asal'),
+  ('s-p', 'u-p', 'kedai-produk', 'Kedai Produk', '60123456789', '');
 `;
   writeFileSync(join(tmp, 'seed.sql'), seed);
   wrangler(['d1', 'execute', 'kedai-db', '--local', '--persist-to', state, '--file', join(tmp, 'seed.sql')], { cwd: cfgDir });
@@ -505,6 +509,9 @@ test('S-08 wizard: 3 langkah dengan semakan slug, normalisasi WhatsApp dan banne
   assert.equal(stored.subarray(0, 4).toString(), 'RIFF');
   assert.equal(stored.subarray(8, 12).toString(), 'WEBP');
   console.log(`  banner tersimpan: ${Math.round(bytes / 1024)} KB`);
+  const snapW = JSON.parse(r2Get('catalog/kuih-mak-cik.json').toString());
+  assert.equal(snapW.shop.name, 'Kuih Mak Cik');
+  assert.deepEqual(snapW.banners, [{ k: key }], 'snapshot awam diterbitkan semasa kedai dicipta');
   await context.close();
 });
 
@@ -555,6 +562,10 @@ test('S-13: tetapan (nama, slug, warna, suis) dan pengurusan banner dengan had p
   assert.equal(after.planCode, 'free');
   assert.equal(after.description, 'Buka setiap hari, 9 pagi hingga 9 malam.');
   await page.getByText('Boleh ditukar 2 kali lagi').waitFor();
+  const snapE = JSON.parse(r2Get('catalog/tetapan-baru.json').toString());
+  assert.equal(snapE.shop.name, 'Kedai Tetapan Baru');
+  assert.equal(snapE.shop.open, false);
+  assert.equal(snapE.shop.theme, '#C2410C');
   assert.equal(await page.getByLabel('Nama dalam link').inputValue(), 'tetapan-baru');
   assert.equal(await page.getByRole('switch', { name: /Kedai sedang buka/ }).isChecked(), false);
 
@@ -610,6 +621,167 @@ test('API dengan sesi peniaga lain: IDOR melalui upload dan banner (kunci kedai 
     body: exe,
   });
   assert.equal(up.status, 415);
+});
+
+// ================================================================ Fasa 3
+
+async function apiCall(method, path, tok, body) {
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    headers: { Cookie: `__Host-sid=${tok}`, 'Content-Type': 'application/json', Origin: BASE },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  return { status: res.status, json: await res.json() };
+}
+
+test('S-12 kategori: tambah, nama semula, susun', async () => {
+  const { context, page } = await newPage({ sid: TOKEN_P });
+  await page.goto(`${BASE}/app/#/kategori`);
+  await page.getByRole('heading', { level: 1, name: 'Kategori' }).waitFor();
+  await page.getByText('Belum ada kategori').waitFor();
+  const input = page.getByLabel('Nama kategori baharu');
+  for (const n of ['Kuih', 'Minuman']) {
+    await input.fill(n);
+    await page.getByRole('button', { name: 'Tambah' }).click();
+    await page.locator('.cat-name', { hasText: n }).waitFor();
+  }
+  await page.getByRole('button', { name: 'Nama semula Kuih' }).click();
+  const edit = page.getByLabel('Nama baharu untuk Kuih');
+  await edit.fill('Kuih Muih');
+  await page.getByRole('button', { name: 'Simpan' }).click();
+  await page.locator('.cat-name', { hasText: 'Kuih Muih' }).waitFor();
+  await page.getByRole('button', { name: 'Naikkan Minuman' }).click();
+  await page.waitForFunction(() => document.querySelector('.cat-row .cat-name')?.textContent === 'Minuman');
+  await page.getByText('2 daripada 5 kategori').waitFor();
+  await touchTargets(page, '.cat-actions .icon-btn');
+  await noHorizontalScroll(page);
+  await shot(page, '30-kategori');
+  const cats = (await apiCall('GET', '/api/categories', TOKEN_P)).json.categories.map((c) => c.name);
+  assert.deepEqual(cats, ['Minuman', 'Kuih Muih']);
+  await context.close();
+});
+
+test('S-10/S-11 produk: tambah dengan gambar ~5 MB, tanpa harga, habis stok, susun, cari, padam; snapshot dikemas kini', async () => {
+  const { context, page } = await newPage({ sid: TOKEN_P });
+  page.on('dialog', (d) => d.accept());
+  await page.goto(`${BASE}/app/#/produk`);
+  await page.getByRole('heading', { name: 'Belum ada produk' }).waitFor();
+  await shot(page, '31-produk-kosong');
+  await page.getByRole('link', { name: 'Tambah produk pertama' }).click();
+  await page.getByRole('heading', { level: 1, name: 'Tambah produk' }).waitFor();
+
+  await page.locator('#p-image').setInputFiles(bigJpeg);
+  await page.locator('#img-msg', { hasText: 'Siap dimampatkan' }).waitFor({ timeout: 60000 });
+  await page.getByLabel('Nama produk').fill('Teh Tarik');
+  const price = page.getByLabel('Harga (RM)');
+  await price.fill('abc');
+  await price.blur();
+  await page.locator('#p-price-msg', { hasText: 'Harga tak sah' }).waitFor();
+  await price.fill('3.5');
+  await price.blur();
+  await page.locator('#p-price-msg', { hasText: 'RM3.50' }).waitFor();
+  await page.getByLabel('Kategori').selectOption({ label: 'Minuman' });
+  await page.getByLabel('Penerangan (pilihan)').fill('Kurang manis boleh.');
+  await noHorizontalScroll(page);
+  await shot(page, '32-borang-produk');
+  await page.getByRole('button', { name: 'Simpan produk' }).click();
+  await page.locator('.product-row', { hasText: 'Teh Tarik' }).waitFor({ timeout: 30000 });
+  await page.getByText('Produk ditambah.').waitFor();
+
+  // produk kedua tanpa gambar dan harga; nama berisi HTML
+  await page.getByRole('link', { name: 'Tambah produk' }).click();
+  await page.getByLabel('Nama produk').fill('<img src=x onerror="window.__xss=2"> Kuih Lapis');
+  await page.getByRole('button', { name: 'Simpan produk' }).click();
+  const row2 = page.locator('.product-row', { hasText: 'Kuih Lapis' });
+  await row2.waitFor();
+  assert.ok((await row2.textContent()).includes('Hubungi untuk harga'));
+  assert.ok((await row2.textContent()).includes('<img src=x'), 'HTML dipapar sebagai teks');
+  assert.equal(await page.evaluate(() => window.__xss), undefined);
+
+  // habis stok, susun, cari, tapis
+  await row2.getByRole('switch').uncheck();
+  await page.getByText('ditanda habis stok').waitFor();
+  await row2.locator('.badge', { hasText: 'Habis' }).waitFor();
+  await page.getByRole('button', { name: /^Naikkan <img/ }).click();
+  await page.waitForFunction(() => document.querySelector('.product-row .product-name')?.textContent.includes('Kuih Lapis'));
+  await page.getByLabel('Cari produk').fill('teh');
+  assert.equal(await page.locator('.product-row').count(), 1);
+  await page.getByLabel('Cari produk').fill('');
+  await page.getByRole('button', { name: 'Minuman' }).click();
+  assert.equal(await page.locator('.product-row').count(), 1);
+  await page.getByRole('button', { name: 'Semua' }).click();
+  assert.equal(await page.locator('.product-row').count(), 2);
+  await touchTargets(page, '.product-actions .icon-btn');
+  await noHorizontalScroll(page);
+  await shot(page, '33-senarai-produk');
+
+  // semak data sebenar: D1, R2 dan snapshot awam
+  const data = (await apiCall('GET', '/api/products', TOKEN_P)).json;
+  const [first, second] = data.products;
+  assert.equal(first.name.includes('Kuih Lapis'), true, 'susunan disimpan');
+  assert.equal(first.isAvailable, false);
+  assert.equal(second.name, 'Teh Tarik');
+  assert.equal(second.priceSen, 350);
+  assert.equal(second.description, 'Kurang manis boleh.');
+  const big = r2Get(second.imageKey);
+  const thumb = r2Get(second.thumbKey);
+  assert.ok(big.length <= 400 * 1024 && thumb.length <= 80 * 1024, `${big.length} / ${thumb.length}`);
+  assert.equal(big.subarray(8, 12).toString(), 'WEBP');
+  assert.equal(second.bytes, big.length + thumb.length);
+  assert.equal(data.usage.storageBytes, second.bytes);
+  console.log(`  gambar produk: ${Math.round(big.length / 1024)} KB + thumbnail ${Math.round(thumb.length / 1024)} KB`);
+
+  const snap = JSON.parse(r2Get('catalog/kedai-produk.json').toString());
+  assert.equal(snap.items.length, 2);
+  assert.equal(snap.items[0].a, false);
+  assert.deepEqual(
+    { n: snap.items[1].n, p: snap.items[1].p, i: snap.items[1].i, t: snap.items[1].t },
+    { n: 'Teh Tarik', p: 350, i: second.imageKey, t: second.thumbKey },
+  );
+  assert.equal(snap.items[1].c, data.categories.find((c) => c.name === 'Minuman').id);
+  assert.ok(!JSON.stringify(snap).includes('produk@ujian.test'), 'tiada e-mel dalam snapshot awam');
+
+  // ubah harga, padam produk kedua
+  await page.locator('.product-row', { hasText: 'Teh Tarik' }).locator('.product-link').click();
+  await page.getByRole('heading', { level: 1, name: 'Ubah produk' }).waitFor();
+  assert.equal(await page.getByLabel('Harga (RM)').inputValue(), '3.50');
+  await page.getByLabel('Harga (RM)').fill('4');
+  await page.getByRole('button', { name: 'Simpan perubahan' }).click();
+  await page.locator('.product-row', { hasText: 'RM4.00' }).waitFor();
+  await page.locator('.product-row', { hasText: 'Kuih Lapis' }).locator('.product-link').click();
+  await page.getByRole('button', { name: 'Padam produk' }).click();
+  await page.getByText('Produk dipadam.').waitFor();
+  assert.equal(await page.locator('.product-row').count(), 1);
+
+  // dashboard: meter penggunaan
+  await page.getByRole('link', { name: 'Utama' }).click();
+  await page.getByRole('heading', { name: 'Penggunaan pelan' }).waitFor();
+  await page.locator('.meter', { hasText: 'Produk' }).getByText('1 / 20').waitFor();
+  await page.locator('.meter', { hasText: 'Kategori' }).getByText('2 / 5').waitFor();
+  await noHorizontalScroll(page);
+  await shot(page, '34-dashboard-meter');
+  await context.close();
+});
+
+test('IPD "Had produk": produk ke-21 ditolak oleh server; UI papar had dan butang naik taraf', async () => {
+  const existing = (await apiCall('GET', '/api/products', TOKEN_P)).json.usage.products;
+  for (let i = existing; i < 20; i++) {
+    assert.equal((await apiCall('POST', '/api/products', TOKEN_P, { name: `Produk ${i + 1}` })).status, 201);
+  }
+  const over = await apiCall('POST', '/api/products', TOKEN_P, { name: 'Produk 21' });
+  assert.equal(over.status, 409);
+  assert.equal(over.json.code, 'had-produk');
+
+  const { context, page } = await newPage({ sid: TOKEN_P });
+  await page.goto(`${BASE}/app/#/produk`);
+  await page.getByText('Had 20 produk pelan Percuma dicapai.').waitFor();
+  assert.equal(await page.getByRole('link', { name: 'Tambah produk' }).count(), 0);
+  await page.getByRole('link', { name: 'Naik taraf' }).waitFor();
+  await page.goto(`${BASE}/app/#/produk/baru`);
+  await page.getByRole('link', { name: 'Lihat pelan Pro' }).waitFor();
+  const snap = JSON.parse(r2Get('catalog/kedai-produk.json').toString());
+  assert.equal(snap.items.length, 20);
+  await context.close();
 });
 
 test('Tiada pelanggaran CSP atau ralat JavaScript dalam semua senario', () => {

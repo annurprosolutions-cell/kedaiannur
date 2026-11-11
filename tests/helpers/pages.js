@@ -25,7 +25,31 @@ for (const file of files) {
   const mod = await import(pathToFileURL(file).href);
   if (rel === 'api/_middleware') middleware = mod;
   else if (rel === 'api/[[path]]') catchAll = mod;
-  else routes.push({ path: `/${rel}`, mod });
+  else {
+    // index.js -> laluan folder; [id].js -> segmen dinamik (seperti penghalaan fail Pages)
+    const segments = `/${rel}`.replace(/\/index$/, '').split('/').slice(1);
+    routes.push({ path: `/${segments.join('/')}`, segments, dynamic: segments.some((x) => /^\[\w+\]$/.test(x)), mod });
+  }
+}
+// Laluan statik didahulukan, sama seperti keutamaan Pages.
+routes.sort((a, b) => Number(a.dynamic) - Number(b.dynamic));
+
+function matchRoute(pathname, method) {
+  const parts = pathname.split('/').slice(1);
+  for (const r of routes) {
+    if (r.segments.length !== parts.length) continue;
+    const params = {};
+    const ok = r.segments.every((seg, i) => {
+      const m = /^\[(\w+)\]$/.exec(seg);
+      if (m) {
+        params[m[1]] = decodeURIComponent(parts[i]);
+        return true;
+      }
+      return seg === parts[i];
+    });
+    if (ok && pickHandler(r.mod, method)) return { route: r, params };
+  }
+  return null;
 }
 
 export const routePaths = routes.map((r) => r.path);
@@ -46,14 +70,22 @@ export async function callApi(env, method, path, { headers = {}, body, origin = 
     if (!binary && !('Content-Type' in init.headers)) init.headers['Content-Type'] = 'application/json';
   }
   const request = new Request(`https://kedai.test${path}`, init);
-  const route = routes.find((r) => r.path === new URL(request.url).pathname);
-  const handler = pickHandler(route && route.mod, method) || pickHandler(catchAll, method);
+  const match = matchRoute(new URL(request.url).pathname, method);
+  const handler = match ? pickHandler(match.route.mod, method) : pickHandler(catchAll, method);
 
   const chain = [...[].concat(middleware.onRequest), handler];
   let i = 0;
-  const context = { request, env, data: {}, params: {}, waitUntil() {}, passThroughOnException() {} };
+  const pending = [];
+  const context = {
+    request, env, data: {}, params: match ? match.params : {},
+    waitUntil(p) {
+      pending.push(p);
+    },
+    passThroughOnException() {},
+  };
   context.next = async () => chain[i++](context);
   const res = await context.next();
+  await Promise.all(pending); // kerja waitUntil (contoh pembersihan R2) selesai sebelum ujian menyemak
   const text = await res.text();
   let json = null;
   try {

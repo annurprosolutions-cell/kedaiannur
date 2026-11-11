@@ -6,7 +6,8 @@ export class FakeR2 {
   }
 
   async put(key, value, options = {}) {
-    const bytes = value instanceof Uint8Array ? value : new Uint8Array(value);
+    if (this.failPuts) throw new Error('R2 put gagal (simulasi)');
+    const bytes = typeof value === 'string' ? new TextEncoder().encode(value) : value instanceof Uint8Array ? value : new Uint8Array(value);
     this.objects.set(key, { bytes: new Uint8Array(bytes), httpMetadata: options.httpMetadata || {}, uploaded: new Date() });
     return { key, size: bytes.length };
   }
@@ -25,11 +26,27 @@ export class FakeR2 {
     for (const k of [].concat(keys)) this.objects.delete(k);
   }
 
-  async list({ prefix = '' } = {}) {
-    const objects = [...this.objects.entries()]
+  // Paginasi seperti R2: limit, cursor (indeks permulaan), truncated.
+  async list({ prefix = '', limit = 1000, cursor } = {}) {
+    const all = [...this.objects.entries()]
       .filter(([k]) => k.startsWith(prefix))
-      .map(([key, o]) => ({ key, size: o.bytes.length }));
-    return { objects, truncated: false };
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, o]) => ({ key, size: o.bytes.length, uploaded: o.uploaded }));
+    const start = cursor ? Number(cursor) : 0;
+    const objects = all.slice(start, start + limit);
+    const truncated = start + limit < all.length;
+    return { objects, truncated, cursor: truncated ? String(start + limit) : undefined };
+  }
+
+  // Pembantu ujian: undurkan masa muat naik objek (untuk menguji tempoh tangguh objek yatim).
+  age(key, ms) {
+    const o = this.objects.get(key);
+    o.uploaded = new Date(o.uploaded.getTime() - ms);
+  }
+
+  json(key) {
+    const o = this.objects.get(key);
+    return o ? JSON.parse(new TextDecoder().decode(o.bytes)) : null;
   }
 
   keys() {

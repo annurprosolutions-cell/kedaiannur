@@ -7,6 +7,9 @@ import { renderGoogleButton, googleSignOut } from './google.js';
 import { getConfig } from './config.js';
 import { viewSetup } from './setup.js';
 import { viewSettings } from './settings.js';
+import { viewProducts, viewProductForm } from './products.js';
+import { viewCategories } from './categories.js';
+import { formatBytes } from './forms.js';
 
 const root = document.getElementById('app');
 const state = { me: null };
@@ -19,9 +22,19 @@ const NAV = [
   { route: 'akaun', label: 'Akaun', icon: 'orang' },
 ];
 
-function currentRoute() {
-  const r = location.hash.replace(/^#\/?/, '').split(/[?/]/)[0];
-  return NAV.some((n) => n.route === r) ? r : '';
+// Laluan: #/, #/produk, #/produk/baru, #/produk/<id>, #/kategori, #/tetapan, #/langganan, #/akaun.
+// Pulangkan tab navigasi aktif dan fungsi skrin.
+function resolveRoute() {
+  const [a = '', b] = location.hash.replace(/^#\/?/, '').split('?')[0].split('/').filter(Boolean);
+  if (a === 'produk' && b === 'baru') return { nav: 'produk', view: () => titled('Tambah produk', viewProductForm(ctx, null)) };
+  if (a === 'produk' && b) return { nav: 'produk', view: () => titled('Ubah produk', viewProductForm(ctx, b)) };
+  if (a === 'kategori') return { nav: 'produk', view: () => titled('Kategori', viewCategories(ctx)) };
+  return NAV.some((n) => n.route === a) ? { nav: a, view: VIEWS[a] } : { nav: '', view: VIEWS[''] };
+}
+
+function titled(title, el) {
+  setTitle(title);
+  return el;
 }
 
 function setTitle(title) {
@@ -229,10 +242,9 @@ function statusNotice() {
 }
 
 function renderShell() {
-  const route = currentRoute();
-  const view = VIEWS[route] || VIEWS[''];
-  const main = h('main', { class: 'app-main stack', id: 'main' }, statusNotice(), view());
-  root.replaceChildren(h('div', { class: 'app-shell' }, header(), nav(route), main));
+  const route = resolveRoute();
+  const main = h('main', { class: 'app-main stack', id: 'main' }, statusNotice(), route.view());
+  root.replaceChildren(h('div', { class: 'app-shell' }, header(), nav(route.nav), main));
   window.scrollTo(0, 0);
 }
 
@@ -251,27 +263,69 @@ function placeholder(iconName, title, text) {
 
 // ---------------------------------------------------------------- Skrin
 
+function meter(label, used, max, fmt = (n) => String(n)) {
+  const pct = max > 0 ? Math.min(100, Math.round((used / max) * 100)) : 0;
+  return h(
+    'div',
+    { class: 'meter' },
+    h('div', { class: 'meter-head' }, h('span', {}, label), h('span', { class: 'caption' }, `${fmt(used)} / ${fmt(max)}`)),
+    h('div', { class: `meter-bar${pct >= 90 ? ' meter-hot' : ''}`, role: 'progressbar', 'aria-label': label, 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(pct) }, h('span', { style: `width:${pct}%` })),
+  );
+}
+
+// S-09 Dashboard: link kedai, pelan, meter penggunaan had, pintasan. Salin dan kongsi link dibina dalam Fasa 4.
 function viewDashboard() {
   setTitle('Utama');
   const { user, shop } = state.me;
+  const usage = shop.usage || { products: 0, categories: 0, banners: 0 };
+  const plan = shop.plan;
+  const isPro = plan.code !== 'free';
   return h(
     'div',
     { class: 'stack' },
     h('h1', {}, `Hai${user.name ? `, ${user.name}` : ''}`),
+    shop.catalogDirty
+      ? h('p', { class: 'notice notice-warning', role: 'status' }, 'Katalog awam belum dikemas kini sepenuhnya. Simpan sebarang perubahan untuk cuba semula.')
+      : null,
     h(
       'section',
-      { class: 'card' },
-      h('h2', {}, shop.name),
-      h('p', { class: 'muted' }, `kedai.annurpro.com/${shop.slug}`),
-      h('span', { class: shop.planCode === 'pro' ? 'badge badge-pro' : 'badge' }, shop.planCode === 'pro' ? 'Pro' : 'Percuma'),
+      { class: 'card stack-sm' },
+      h('div', { class: 'shop-head' }, h('h2', {}, shop.name), h('span', { class: isPro ? 'badge badge-pro' : 'badge' }, plan.name)),
+      h('p', { class: 'muted shop-link' }, `kedai.annurpro.com/${shop.slug}`),
+      h('p', { class: 'caption' }, shop.isOpen ? 'Kedai sedang buka.' : 'Kedai sedang tutup. Pelanggan tak boleh hantar order.'),
     ),
-    placeholder('binaan', 'Dashboard', 'Salin link, meter penggunaan dan pintasan akan dibina dalam Fasa 3 dan 4.'),
+    usage.products === 0
+      ? h(
+          'section',
+          { class: 'card stack-sm' },
+          h('h2', {}, 'Langkah seterusnya'),
+          h('p', { class: 'muted' }, 'Tambah produk pertama: gambar, nama dan harga sudah cukup.'),
+          h('a', { class: 'btn btn-block', href: '#/produk/baru' }, icon('tambah'), h('span', {}, 'Tambah produk pertama')),
+        )
+      : null,
+    h(
+      'section',
+      { class: 'card stack' },
+      h('h2', {}, 'Penggunaan pelan'),
+      meter('Produk', usage.products, plan.maxProducts),
+      meter('Kategori', usage.categories, plan.maxCategories),
+      meter('Banner', usage.banners, plan.maxBanners),
+      meter('Storage gambar', shop.storageBytes, plan.maxStorageBytes, formatBytes),
+      isPro ? null : h('a', { class: 'btn btn-secondary btn-block', href: '#/langganan' }, 'Lihat pelan Pro'),
+    ),
+    h(
+      'nav',
+      { class: 'shortcuts', 'aria-label': 'Pintasan' },
+      h('a', { class: 'btn btn-secondary', href: '#/produk' }, icon('produk'), h('span', {}, 'Produk')),
+      h('a', { class: 'btn btn-secondary', href: '#/kategori' }, icon('senarai'), h('span', {}, 'Kategori')),
+      h('a', { class: 'btn btn-secondary', href: '#/tetapan' }, icon('tetapan'), h('span', {}, 'Tetapan')),
+    ),
   );
 }
 
 function viewProduk() {
   setTitle('Produk');
-  return placeholder('produk', 'Produk', 'Senarai dan borang produk akan dibina dalam Fasa 3.');
+  return viewProducts(ctx);
 }
 
 function viewTetapan() {

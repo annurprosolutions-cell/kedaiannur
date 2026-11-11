@@ -10,7 +10,8 @@ Stack: Cloudflare Pages (frontend statik tanpa build step) + Pages Functions (AP
 | 0 | Repo, `_routes.json`, `_headers`, halaman Hello, skema D1 | Kod siap. Setup akaun Cloudflare/Google ikut langkah di bawah |
 | 1 | Login Google, sesi D1, `/api/me`, logout, semakan Origin, kerangka `/app/` | Kod siap, ujian lulus |
 | 2 | Setup kedai 3 langkah (S-08), semakan slug, WhatsApp, warna, mampat dan muat naik gambar, banner, tetapan kedai (S-13) | Kod siap, ujian lulus. Perlu R2 dan binding `MEDIA` untuk uji secara live |
-| 3 hingga 8 | Ikut IPD | Belum mula |
+| 3 | Kategori (S-12), produk (S-10, S-11), had pelan di server, snapshot `catalog/<slug>.json` ke R2, dashboard dengan meter (S-09), pembersihan gambar yatim | Kod siap, ujian lulus |
+| 4 hingga 8 | Ikut IPD | Belum mula |
 
 ## Struktur
 
@@ -22,7 +23,7 @@ public/            fail statik yang dihidang (build output directory)
   app/             dashboard peniaga (S-07 hingga S-15)
   admin/           panel superadmin (Fasa 7)
   assets/          CSS dan modul JS
-functions/api/     Pages Functions (API): auth, me, shop, shop/banners, slug-check, upload, config, ping
+functions/api/     Pages Functions (API): auth, me, shop, shop/banners, slug-check, upload, products, categories, config, ping
 lib/               kod kongsi untuk Functions (tidak dihidang kepada awam)
 db/0001_init.sql   skema D1 (jalankan sekali dalam Console)
 tests/             ujian unit (node --test) dan e2e (Playwright + wrangler)
@@ -126,9 +127,22 @@ dan sesi disuntik terus ke D1 local.
 - Gambar: browser mampat ke WebP (JPEG jika tak sokong), server semak magic bytes dan had saiz (produk 400 KB, thumbnail 80 KB, banner 500 KB).
   `storage_bytes` dikira mengikut saiz sebenar objek R2 semasa gambar dipautkan, bukan daripada angka client.
 
-## Nota untuk fasa seterusnya
+## Snapshot katalog (Fasa 3)
 
-- **Fasa 3, snapshot:** `buildSnapshot` mesti dipanggil selepas `PUT /api/shop/banners` dan `PATCH /api/shop` (ada penanda `Fasa 3:` dalam kod).
-  Tukar slug mesti memindahkan `catalog/<slug_lama>.json`. Kedai `suspended` tak boleh dibina semula snapshotnya.
-- **Fasa 3, objek yatim:** gambar yang dimuat naik tetapi tak pernah dipautkan (borang ditinggalkan) kekal di R2 dan tak dikira dalam
-  `storage_bytes`. Ia dibuang bila kedai dipadam (awalan `shops/<id>/`). Pembersihan oportunistik ditambah bersama muat naik produk.
+- Setiap tulisan (kedai, banner, produk, kategori, susunan) membina semula `catalog/<slug>.json` dalam R2 daripada pelan efektif:
+  hanya `max_products` produk pertama mengikut susunan, `max_categories` kategori dan `max_banners` banner. Data lebih tak dipadam.
+- Tukar slug memadam snapshot slug lama. Kedai `suspended` tiada snapshot.
+- Jika tulis R2 gagal: perubahan tetap disimpan dalam D1, `shops.catalog_dirty = 1`, API pulang 500 `katalog-gagal`, dan dashboard papar notis.
+  Tulisan seterusnya yang berjaya menetapkan semula `catalog_dirty = 0`.
+- Semak di D1 Console: `SELECT slug, catalog_dirty FROM shops WHERE catalog_dirty = 1;`
+
+## Gambar yatim
+
+Gambar yang dimuat naik tetapi tak pernah disimpan (borang ditinggalkan) dipadam secara oportunistik selepas setiap muat naik
+baharu kedai itu, jika berumur lebih 6 jam dan tak dirujuk oleh produk atau banner (`sweepOrphans` dalam `lib/media.js`).
+
+## Nota untuk Fasa 4
+
+- Halaman `/<slug>` baca `catalog/<slug>.json` (format dalam BSD seksyen 5). Kunci gambar `t`/`i` dan banner `k` ialah kunci R2;
+  URL penuh = `MEDIA_BASE_URL` + `/` + kunci.
+- `shop.html` (fallback) perlu ditambah ke `exclude` dalam `_routes.json` bersama `/shop`.

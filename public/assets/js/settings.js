@@ -180,6 +180,12 @@ export function viewSettings(ctx) {
       } catch (err) {
         saveBtn.textContent = 'Simpan perubahan';
         if (err.status === 401) return ctx.onError(err);
+        if (err.code === 'katalog-gagal') {
+          // Tetapan sudah disimpan; hanya katalog awam gagal dikemas kini.
+          toast(err.message, 'error');
+          await ctx.reloadMe();
+          return;
+        }
         if (err.fields) {
           if (err.fields.name) nameF.msg(err.fields.name);
           if (err.fields.slug) {
@@ -254,7 +260,18 @@ export function viewSettings(ctx) {
         return true;
       } catch (err) {
         if (err.status === 401) ctx.onError(err);
-        else setBannerMsg(err.message);
+        else if (err.code === 'katalog-gagal') {
+          // Banner sudah disimpan; muat semula senarai sebenar dari server.
+          try {
+            const fresh = await api('/api/shop');
+            banners = fresh.banners;
+            storageBytes = fresh.shop.storageBytes;
+          } catch {
+            /* biar senarai lama */
+          }
+          setBannerMsg(err.message);
+          return true;
+        } else setBannerMsg(err.message);
         return false;
       } finally {
         busy = false;

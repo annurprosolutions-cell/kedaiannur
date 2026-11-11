@@ -6,10 +6,10 @@ import { fail, json } from '../../lib/http.js';
 import { ownerShop } from '../../lib/shop.js';
 import { formatMb } from '../../lib/plan.js';
 import {
-  ALLOWED_TYPES, CACHE_CONTROL, UPLOAD_LIMITS, newObjectKey, readCapped, sniffImage,
+  ALLOWED_TYPES, CACHE_CONTROL, UPLOAD_LIMITS, newObjectKey, readCapped, sniffImage, sweepOrphans,
 } from '../../lib/media.js';
 
-export async function onRequestPost({ request, env, data }) {
+export async function onRequestPost({ request, env, data, waitUntil }) {
   const { shop, plan, error } = await ownerShop(env, data.user, { writable: true });
   if (error) return error;
 
@@ -37,5 +37,7 @@ export async function onRequestPost({ request, env, data }) {
 
   const key = newObjectKey(shop.id, kind, declared);
   await env.MEDIA.put(key, bytes, { httpMetadata: { contentType: declared, cacheControl: CACHE_CONTROL } });
+  // Bersihkan gambar yang dimuat naik lebih 6 jam lalu tetapi tak pernah dipautkan (selepas respons dihantar).
+  waitUntil(sweepOrphans(env, shop.id));
   return json({ ok: true, key, bytes: bytes.length, type: declared });
 }

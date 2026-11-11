@@ -23,6 +23,8 @@ const ICONS = {
   ],
   keluar: [['path', { d: 'M15 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3M10 17l5-5-5-5M15 12H3' }]],
   semak: [['path', { d: 'M5 12.5l4.5 4.5L19 7.5' }]],
+  pensel: [['path', { d: 'M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4' }]],
+  senarai: [['path', { d: 'M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01' }]],
   tambah: [['path', { d: 'M12 5v14M5 12h14' }]],
   padam: [['path', { d: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3' }]],
   atas: [['path', { d: 'M6 15l6-6 6 6' }]],

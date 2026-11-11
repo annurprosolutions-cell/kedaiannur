@@ -6,6 +6,7 @@ import { fail, json, readJson } from '../../../lib/http.js';
 import { bannersToApi, getBanners, ownerShop } from '../../../lib/shop.js';
 import { formatMb } from '../../../lib/plan.js';
 import { deleteObjects, isBannerKeyOf, objectSize } from '../../../lib/media.js';
+import { CATALOG_FAIL, publishSnapshot } from '../../../lib/catalog.js';
 
 const MAX_KEYS_INPUT = 20; // had kasar input; had sebenar ialah plans.max_banners
 
@@ -72,7 +73,7 @@ export async function onRequestPut({ request, env, data }) {
   await db.batch(statements);
 
   await deleteObjects(env, removed.map((b) => b.image_key));
-  // Fasa 3: bina semula snapshot catalog/<slug>.json di sini.
+  if (!(await publishSnapshot(env, shop.id))) return fail(500, CATALOG_FAIL.code, CATALOG_FAIL.message);
 
   const [banners, fresh] = await Promise.all([
     getBanners(db, shop.id),

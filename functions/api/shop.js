@@ -7,6 +7,7 @@
 import { fail, failFields, json, readJson } from '../../lib/http.js';
 import { columnFor, validateShopInput } from '../../lib/validate.js';
 import { getShopByOwner, ownerShop, shopResponseData } from '../../lib/shop.js';
+import { CATALOG_FAIL, publishSnapshot } from '../../lib/catalog.js';
 import { DEFAULT_THEME, LIMITS, MSG as RULE_MSG, isReservedLocally } from '../../public/assets/js/rules.js';
 
 const BODY_ERROR = 'Format permintaan tidak sah.';
@@ -60,6 +61,10 @@ export async function onRequestPost({ request, env, data }) {
     throw err;
   }
   if (result.meta.changes === 0) return slugTaken();
+
+  // Snapshot awal (katalog kosong). Jika gagal, catalog_dirty ditanda dan tulisan seterusnya cuba lagi;
+  // kedai tetap dicipta supaya wizard tak diulang.
+  await publishSnapshot(env, id);
 
   const r = await shopResponseData(env, data.user);
   return r.error || json(r.body, 201);
@@ -130,7 +135,11 @@ export async function onRequestPatch({ request, env, data }) {
       .prepare('INSERT INTO audit_log (actor_email, action, shop_id, meta) VALUES (?1, ?2, ?3, ?4)')
       .bind(data.user.email, 'rename_slug', shop.id, JSON.stringify({ from: shop.slug, to: values.slug }))
       .run();
-    // Fasa 3: pindahkan snapshot catalog/<slug_lama>.json ke catalog/<slug_baru>.json.
+  }
+
+  // Snapshot baharu; jika slug ditukar, snapshot slug lama dipadam (slug lama tak dikekalkan).
+  if (!(await publishSnapshot(env, shop.id, { oldSlug: renaming ? shop.slug : null }))) {
+    return fail(500, CATALOG_FAIL.code, CATALOG_FAIL.message);
   }
 
   const r = await shopResponseData(env, data.user);
