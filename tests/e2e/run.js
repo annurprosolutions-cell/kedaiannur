@@ -35,6 +35,7 @@ const TOKEN_B = token('B'); // pengguna dengan kedai (dashboard)
 const TOKEN_W = token('W'); // pengguna tanpa kedai untuk wizard
 const TOKEN_E = token('E'); // pengguna dengan kedai untuk ujian tetapan dan banner
 const TOKEN_P = token('P'); // pengguna dengan kedai untuk ujian produk dan kategori (Fasa 3)
+const TOKEN_R = token('R'); // pengguna dengan kedai Pro yang tamat dalam 10 hari (Fasa 5)
 const XSS_NAME = '<img src=x onerror="window.__xss=1">';
 const PNG_1X1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 
@@ -137,18 +138,22 @@ INSERT INTO users (id, google_sub, email, name) VALUES
   ('u-w', 'sub-w', 'wizard@ujian.test', 'Mak Cik Wizard'),
   ('u-d', 'sub-d', 'kopi@ujian.test', 'Pak Kopi'),
   ('u-e', 'sub-e', 'tetapan@ujian.test', 'Kak Tetapan'),
-  ('u-p', 'sub-p', 'produk@ujian.test', 'Abang Produk');
+  ('u-p', 'sub-p', 'produk@ujian.test', 'Abang Produk'),
+  ('u-r', 'sub-r', 'pro@ujian.test', 'Puan Pro');
 INSERT INTO sessions (token_hash, user_id, expires_at) VALUES
   ('${sha(TOKEN_A)}', 'u-a', datetime('now', '+1 day')),
   ('${sha(TOKEN_B)}', 'u-b', datetime('now', '+1 day')),
   ('${sha(TOKEN_W)}', 'u-w', datetime('now', '+1 day')),
   ('${sha(TOKEN_E)}', 'u-e', datetime('now', '+1 day')),
-  ('${sha(TOKEN_P)}', 'u-p', datetime('now', '+1 day'));
+  ('${sha(TOKEN_P)}', 'u-p', datetime('now', '+1 day')),
+  ('${sha(TOKEN_R)}', 'u-r', datetime('now', '+1 day'));
 INSERT INTO shops (id, owner_user_id, slug, name, whatsapp, description) VALUES
   ('s-b', 'u-b', 'wakanda', 'Kedai Wakanda', '60123456789', ''),
   ('s-d', 'u-d', 'kopi-o', 'Kopi O Pak Kopi', '60111111111', ''),
   ('s-e', 'u-e', 'tetapan-uji', 'Kedai Tetapan', '60123456789', 'Penerangan asal'),
   ('s-p', 'u-p', 'kedai-produk', 'Kedai Produk', '60123456789', '');
+INSERT INTO shops (id, owner_user_id, slug, name, whatsapp, description, plan_code, plan_expires_at) VALUES
+  ('s-r', 'u-r', 'kedai-pro', 'Kedai Pro', '60198765432', '', 'pro', date('now', '+10 days'));
 `;
   writeFileSync(join(tmp, 'seed.sql'), seed);
   wrangler(['d1', 'execute', 'kedai-db', '--local', '--persist-to', state, '--file', join(tmp, 'seed.sql')], { cwd: cfgDir });
@@ -760,7 +765,7 @@ test('S-10/S-11 produk: tambah dengan gambar ~5 MB, tanpa harga, habis stok, sus
   await page.locator('.product-row', { hasText: 'Kuih Lapis' }).locator('.product-link').click();
   await page.getByRole('button', { name: 'Padam produk' }).click();
   await page.getByText('Produk dipadam.').waitFor();
-  assert.equal(await page.locator('.product-row').count(), 1);
+  await page.waitForFunction(() => document.querySelectorAll('.product-row').length === 1); // senarai dimuat semula
 
   // dashboard: meter penggunaan
   await page.getByRole('link', { name: 'Utama' }).click();
@@ -986,6 +991,118 @@ test('F-09 dashboard: salin link, kongsi ke WhatsApp, buka kedai', async () => {
   await touchTargets(page, '.share-row .btn');
   await noHorizontalScroll(page);
   await shot(page, '46-dashboard-kongsi');
+  await context.close();
+});
+
+// ================================================================ Fasa 5
+
+async function uploadFakeBanner(tok) {
+  const body = Buffer.alloc(3000);
+  Buffer.from('RIFF').copy(body, 0);
+  Buffer.from('WEBP').copy(body, 8);
+  const res = await fetch(`${BASE}/api/upload?kind=banner`, {
+    method: 'POST', headers: { Cookie: `__Host-sid=${tok}`, 'Content-Type': 'image/webp', Origin: BASE }, body,
+  });
+  assert.equal(res.status, 200);
+  return (await res.json()).key;
+}
+
+test('IPD 5.3 notis: Pro tamat dalam 10 hari dipaparkan di dashboard dan Langganan', async () => {
+  const { context, page } = await newPage({ sid: TOKEN_R });
+  await page.goto(`${BASE}/app/`);
+  await page.getByText(/Langganan Pro tamat dalam 10 hari \(\d{2}\/\d{2}\/\d{4}\)/).waitFor();
+  await page.locator('.shop-head .badge', { hasText: 'Pro' }).waitFor();
+  await page.locator('.meter', { hasText: 'Produk' }).getByText('0 / 500').waitFor();
+  await shot(page, '50-dashboard-pro-tamat');
+
+  await page.getByRole('link', { name: 'Langganan' }).first().click();
+  await page.getByRole('heading', { level: 2, name: 'Pelan Pro' }).waitFor();
+  await page.getByText(/Aktif sehingga \d{2}\/\d{2}\/\d{4}/).waitFor();
+  await page.getByRole('cell', { name: 'RM29.00 sebulan atau RM290.00 setahun' }).waitFor();
+  await page.getByText('Belum ada bayaran.').waitFor();
+  await noHorizontalScroll(page);
+  await shot(page, '51-langganan');
+  await context.close();
+});
+
+test('IPD 5.2 Pro: templat mesej sendiri dengan pratonton, 2 banner berputar, tiada branding; mesej order guna templat', async () => {
+  assert.equal((await apiCall('POST', '/api/products', TOKEN_R, { name: 'Kek Coklat', priceSen: 4500 })).status, 201);
+  const keys = [await uploadFakeBanner(TOKEN_R), await uploadFakeBanner(TOKEN_R)];
+  assert.equal((await apiCall('PUT', '/api/shop/banners', TOKEN_R, { keys })).status, 200, 'Pro boleh 2 banner');
+
+  const { context, page } = await newPage({ sid: TOKEN_R });
+  await page.goto(`${BASE}/app/#/tetapan`);
+  const tpl = page.getByLabel('Templat mesej order');
+  await tpl.waitFor();
+  assert.equal(await tpl.isDisabled(), false);
+  const preview = page.locator('#tpl-preview');
+  assert.ok((await preview.textContent()).startsWith('Hai Kedai Pro, saya nak order:'), 'templat lalai bila kosong');
+  await tpl.fill('Salam {kedai}!\nTempahan:\n');
+  await page.getByRole('button', { name: '{senarai_item}' }).click();
+  await tpl.press('End');
+  await tpl.type('\nJumlah {jumlah}\nDaripada {nama}');
+  await preview.getByText('Salam Kedai Pro!').waitFor();
+  assert.ok((await preview.textContent()).includes('1. Nasi Lemak Ayam x2 = RM17.00'));
+  assert.ok((await preview.textContent()).includes('Daripada Ali'));
+  await tpl.fill('Tiada item di sini');
+  await page.locator('#s-tpl-msg', { hasText: 'mesti mengandungi {senarai_item}' }).waitFor();
+  await tpl.fill('Salam {kedai}!\nTempahan:\n{senarai_item}\nJumlah {jumlah}\nDaripada {nama}');
+  await noHorizontalScroll(page);
+  await shot(page, '52-templat');
+  await page.getByRole('button', { name: 'Simpan perubahan' }).click();
+  await page.getByText('Tetapan disimpan.').waitFor();
+  assert.equal((await apiGet('/api/shop', TOKEN_R)).json.shop.messageTemplate, 'Salam {kedai}!\nTempahan:\n{senarai_item}\nJumlah {jumlah}\nDaripada {nama}');
+  await context.close();
+
+  const shop = await newPage();
+  const sp = shop.page;
+  await sp.goto(`${BASE}/kedai-pro`);
+  await sp.getByRole('heading', { level: 1, name: 'Kedai Pro' }).waitFor();
+  assert.equal(await sp.locator('.banner-track .shop-banner').count(), 2);
+  const dots = sp.locator('.banner-dot');
+  assert.equal(await dots.count(), 2);
+  assert.equal(await dots.nth(0).getAttribute('aria-current'), 'true');
+  await dots.nth(1).click();
+  await sp.waitForFunction(() => document.querySelectorAll('.banner-dot')[1].getAttribute('aria-current') === 'true');
+  await touchTargets(sp, '.banner-dot');
+  assert.equal(await sp.getByText('Dikuasakan oleh Kedai AnnurPro').count(), 0, 'Pro: tiada branding');
+  assert.ok(!(await sp.title()).includes('Kedai AnnurPro'), 'tajuk tanpa nama platform');
+  await shot(sp, '53-kedai-pro');
+
+  await sp.getByRole('button', { name: 'Tambah Kek Coklat ke troli' }).click();
+  await sp.locator('.cart-bar').click();
+  await sp.getByRole('dialog', { name: 'Troli' }).getByRole('button', { name: 'Teruskan' }).click();
+  const co = sp.getByRole('dialog', { name: 'Semak dan hantar' });
+  await co.getByLabel('Nama', { exact: true }).fill('Siti');
+  assert.equal(await co.locator('.msg-preview').textContent(), 'Salam Kedai Pro!\nTempahan:\n1. Kek Coklat x1 = RM45.00\nJumlah RM45.00\nDaripada Siti');
+  await shop.context.close();
+});
+
+test('Pelan Percuma: templat mesej dikunci dengan pautan ke pelan Pro', async () => {
+  const { context, page } = await newPage({ sid: TOKEN_P });
+  await page.goto(`${BASE}/app/#/tetapan`);
+  const tpl = page.getByLabel('Templat mesej order');
+  await tpl.waitFor();
+  assert.equal(await tpl.isDisabled(), true);
+  await page.getByText('Templat mesej sendiri untuk pelan Pro.').waitFor();
+  assert.ok((await page.locator('#tpl-preview').textContent()).startsWith('Hai Kedai Produk, saya nak order:'));
+  await context.close();
+});
+
+test('IPD 5.3 tempoh toleransi: notis dan lencana Toleransi; ciri Pro kekal', async () => {
+  wrangler(['d1', 'execute', 'kedai-db', '--local', '--persist-to', state, '--command', "UPDATE shops SET plan_expires_at = date('now', '-3 days') WHERE id = 's-r'"], { cwd: cfgDir });
+  const { context, page } = await newPage({ sid: TOKEN_R });
+  await page.goto(`${BASE}/app/`);
+  await page.getByText(/tempoh toleransi/).waitFor();
+  await page.locator('.shop-head .badge', { hasText: 'Toleransi' }).waitFor();
+  await shot(page, '54-toleransi');
+  assert.equal((await apiGet('/api/me', TOKEN_R)).json.shop.plan.code, 'pro', 'masih Pro dalam toleransi');
+
+  wrangler(['d1', 'execute', 'kedai-db', '--local', '--persist-to', state, '--command', "UPDATE shops SET plan_expires_at = date('now', '-30 days') WHERE id = 's-r'"], { cwd: cfgDir });
+  await page.reload();
+  await page.getByText(/Langganan Pro sudah tamat/).waitFor();
+  await page.getByText('1 banner tidak dipaparkan di kedai awam').waitFor();
+  assert.equal((await apiGet('/api/me', TOKEN_R)).json.shop.plan.code, 'free');
   await context.close();
 });
 

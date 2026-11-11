@@ -28,7 +28,18 @@ export const LIMITS = {
   productDescMax: 500,
   categoryNameMax: 40,
   priceMaxSen: 99999999, // RM999,999.99
+  templateMax: 800,
 };
+
+// Placeholder templat mesej WhatsApp (Pro, F-12). {senarai_item} wajib supaya order tak hilang item.
+export const TEMPLATE_PLACEHOLDERS = [
+  { key: '{kedai}', label: 'Nama kedai' },
+  { key: '{senarai_item}', label: 'Senarai item' },
+  { key: '{jumlah}', label: 'Jumlah' },
+  { key: '{nama}', label: 'Nama pelanggan' },
+  { key: '{alamat}', label: 'Alamat' },
+  { key: '{nota}', label: 'Nota pelanggan' },
+];
 
 export const MSG = {
   slugTakBoleh: 'Nama ini tak boleh digunakan, cuba yang lain.',
@@ -150,4 +161,15 @@ export function formatSen(sen) {
 export function senToInput(sen) {
   if (sen === null || sen === undefined) return '';
   return `${Math.floor(sen / 100)}.${String(sen % 100).padStart(2, '0')}`;
+}
+
+/** Templat mesej: kosong atau null = guna templat lalai. Pulangkan { value } (string atau null) atau { error }. */
+export function validateTemplate(input) {
+  if (input === null || input === undefined) return { value: null };
+  if (typeof input !== 'string') return { error: 'Templat tak sah.' };
+  const s = cleanText(input, { multiline: true });
+  if (!s) return { value: null };
+  if (s.length > LIMITS.templateMax) return { error: `Templat maksimum ${LIMITS.templateMax} aksara.` };
+  if (!s.includes('{senarai_item}')) return { error: 'Templat mesti mengandungi {senarai_item} supaya senarai order dihantar.' };
+  return { value: s };
 }

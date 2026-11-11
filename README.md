@@ -12,7 +12,8 @@ Stack: Cloudflare Pages (frontend statik tanpa build step) + Pages Functions (AP
 | 2 | Setup kedai 3 langkah (S-08), semakan slug, WhatsApp, warna, mampat dan muat naik gambar, banner, tetapan kedai (S-13) | Kod siap, ujian lulus. Perlu R2 dan binding `MEDIA` untuk uji secara live |
 | 3 | Kategori (S-12), produk (S-10, S-11), had pelan di server, snapshot `catalog/<slug>.json` ke R2, dashboard dengan meter (S-09), pembersihan gambar yatim | Kod siap, ujian lulus |
 | 4 | Halaman kedai awam `/<slug>` (S-02 hingga S-06), troli, hantar order ke WhatsApp, pratonton link, salin dan kongsi link (S-09), fallback 404.html | Kod siap, ujian lulus |
-| 5 hingga 8 | Ikut IPD | Belum mula |
+| 5 | Status pelan (aktif, hampir tamat, toleransi, tamat) dengan notis di dashboard dan Langganan (S-14), templat mesej WhatsApp Pro dengan pratonton, banner berputar Pro, buang branding Pro | Kod siap, ujian lulus |
+| 6 hingga 8 | Ikut IPD | Belum mula |
 
 ## Struktur
 
@@ -24,7 +25,8 @@ public/            fail statik yang dihidang (build output directory)
   app/             dashboard peniaga (S-07 hingga S-15)
   admin/           panel superadmin (Fasa 7)
   assets/          CSS dan modul JS
-functions/api/     Pages Functions (API): auth, me, shop, shop/banners, slug-check, upload, products, categories, config, ping
+functions/api/     Pages Functions (API): auth, me, shop, shop/banners, slug-check, upload, products, categories, billing, config, ping
+functions/[slug].js halaman kedai awam
 lib/               kod kongsi untuk Functions (tidak dihidang kepada awam)
 db/0001_init.sql   skema D1 (jalankan sekali dalam Console)
 tests/             ujian unit (node --test) dan e2e (Playwright + wrangler)
@@ -160,3 +162,16 @@ baharu kedai itu, jika berumur lebih 6 jam dan tak dirujuk oleh produk atau bann
 
   Jangan guna `_redirects` untuk fallback ini: peraturan `/:slug` mengatasi fail statik sebenar (`/robots.txt`, `/favicon.svg`).
 - Pratonton WhatsApp guna banner pertama sebagai `og:image`, atau `public/assets/og-default.png` jika tiada banner.
+
+## Pelan dan langganan (Fasa 5)
+
+- Status pelan dikira di server (`planStatus` dalam `lib/plan.js`, UTC, selaras dengan `effectivePlanCode`):
+  `active`, `ending` (14 hari atau kurang), `grace` (dalam `GRACE_DAYS`), `expired`. Notis dipapar di dashboard dan S-14.
+- Templat mesej (Pro): mesti mengandungi `{senarai_item}`, maksimum 800 aksara; kosong = templat lalai. Bila pelan turun, templat
+  kekal dalam D1 tetapi tak diterbitkan.
+- Sementara panel superadmin (Fasa 7) belum ada, pelan boleh diuji melalui D1 Console, kemudian simpan apa-apa tetapan untuk bina
+  semula snapshot:
+
+  ```sql
+  UPDATE shops SET plan_code = 'pro', plan_expires_at = '2026-12-31' WHERE slug = 'slug-kedai';
+  ```

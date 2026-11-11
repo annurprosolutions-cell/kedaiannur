@@ -8,7 +8,7 @@ import { fail, failFields, json, readJson } from '../../lib/http.js';
 import { columnFor, validateShopInput } from '../../lib/validate.js';
 import { getShopByOwner, ownerShop, shopResponseData } from '../../lib/shop.js';
 import { CATALOG_FAIL, publishSnapshot } from '../../lib/catalog.js';
-import { DEFAULT_THEME, LIMITS, MSG as RULE_MSG, isReservedLocally } from '../../public/assets/js/rules.js';
+import { DEFAULT_THEME, LIMITS, MSG as RULE_MSG, isReservedLocally, validateTemplate } from '../../public/assets/js/rules.js';
 
 const BODY_ERROR = 'Format permintaan tidak sah.';
 
@@ -74,11 +74,21 @@ export async function onRequestPatch({ request, env, data }) {
   const parsed = await readJson(request);
   if (parsed.error) return fail(400, 'badan-tidak-sah', BODY_ERROR);
 
-  const { shop, error } = await ownerShop(env, data.user, { writable: true });
+  const { shop, plan, error } = await ownerShop(env, data.user, { writable: true });
   if (error) return error;
 
   const { values, errors } = validateShopInput(parsed.value, { partial: true });
   if (errors) return failFields(errors);
+
+  // Templat mesej sendiri (F-12): Pro sahaja. Kosong atau null = templat lalai (dibenarkan untuk semua pelan).
+  if ('messageTemplate' in parsed.value) {
+    const t = validateTemplate(parsed.value.messageTemplate);
+    if (t.error) return failFields({ messageTemplate: t.error });
+    if (t.value !== null && plan.custom_template !== 1) {
+      return fail(403, 'perlu-pro', 'Templat mesej sendiri hanya untuk pelan Pro.');
+    }
+    if (t.value !== shop.message_template) values.messageTemplate = t.value;
+  }
 
   const renaming = 'slug' in values && values.slug !== String(shop.slug).toLowerCase();
   if (!renaming) delete values.slug;

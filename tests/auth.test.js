@@ -214,6 +214,7 @@ test('kedai sedia ada dipulangkan dalam /api/me', async () => {
   assert.deepEqual(res.json.shop, {
     id: 's1', slug: 'wakanda', name: 'Kedai Wakanda', status: 'active', suspendedReason: null,
     isOpen: true, planCode: 'free', planExpiresAt: null, storageBytes: 0, catalogDirty: false,
+    planStatus: { state: 'free', daysLeft: null, expiresAt: null, graceEndsAt: null },
     usage: { products: 0, categories: 0, banners: 0 },
     plan: {
       code: 'free', name: 'Percuma', maxProducts: 20, maxCategories: 5, maxBanners: 1,

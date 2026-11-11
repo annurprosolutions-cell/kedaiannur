@@ -118,3 +118,12 @@ select.input { appearance: auto; background: var(--surface); }
 .share-row .btn { flex-direction: column; gap: 4px; min-height: 64px; padding: var(--s2); font-size: 14px; }
 .btn-wa { background: var(--success); color: #fff; }
 .btn-wa:hover { background: #166534; }
+
+/* ---- Fasa 5: langganan ---- */
+.table-wrap { overflow-x: auto; }
+.plan-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.plan-table th, .plan-table td { padding: var(--s2); text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+.plan-table thead th { font-size: 13px; color: var(--muted); }
+.plan-table tbody th { font-weight: 600; }
+.pay-list { list-style: none; margin: 0; padding: 0; }
+.pay-list li { display: flex; justify-content: space-between; gap: var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--border); }

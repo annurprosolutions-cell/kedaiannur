@@ -243,10 +243,40 @@ test('IPD ujian "Ubah medan terlarang": plan_code pro dalam PATCH /api/shop diab
   assert.equal(row.plan_anchor_day, null);
 });
 
-test('PATCH: messageTemplate belum dibuka (Fasa 5), diabaikan', async () => {
+test('templat mesej: pelan Percuma ditolak 403 perlu-pro, tiada perubahan lain', async () => {
   await create(a);
-  await patch(a, { name: 'Nama Lain', messageTemplate: 'tipu' });
-  assert.equal(env.DB.rows('SELECT message_template FROM shops')[0].message_template, null);
+  const res = await patch(a, { name: 'Nama Lain', messageTemplate: 'Order {kedai}\n{senarai_item}' });
+  assert.equal(res.status, 403);
+  assert.equal(res.json.code, 'perlu-pro');
+  const row = env.DB.rows('SELECT name, message_template FROM shops')[0];
+  assert.deepEqual(row, { name: 'Kedai Wakanda', message_template: null });
+  assert.equal((await patch(a, { messageTemplate: null })).status, 200, 'set semula ke lalai dibenarkan');
+  assert.equal((await patch(a, { messageTemplate: '' })).status, 200);
+});
+
+test('templat mesej Pro: disimpan, dipulangkan, dan divalidasi', async () => {
+  await create(a);
+  env.DB.sqlite.exec("UPDATE shops SET plan_code = 'pro', plan_expires_at = date('now', '+30 days')");
+  const tpl = 'Salam {kedai},\n{senarai_item}\nJumlah {jumlah}\nDari {nama}';
+  const res = await patch(a, { messageTemplate: `  ${tpl}  ` });
+  assert.equal(res.status, 200);
+  assert.equal(res.json.shop.messageTemplate, tpl);
+  for (const bad of ['Tiada senarai item {kedai}', 'x'.repeat(790) + '{senarai_item}', 123]) {
+    const r = await patch(a, { messageTemplate: bad });
+    assert.equal(r.status, 400, String(bad).slice(0, 20));
+    assert.ok(r.json.fields.messageTemplate);
+  }
+  assert.equal((await patch(a, { messageTemplate: null })).json.shop.messageTemplate, null);
+});
+
+test('templat mesej kekal dalam D1 bila pelan turun (tak dipadam), tapi tak diterbitkan', async () => {
+  await create(a);
+  env.DB.sqlite.exec("UPDATE shops SET plan_code = 'pro', plan_expires_at = date('now', '+30 days')");
+  await patch(a, { messageTemplate: 'Hai {kedai} {senarai_item}' });
+  env.DB.sqlite.exec("UPDATE shops SET plan_expires_at = date('now', '-30 days')");
+  await patch(a, { name: 'Kedai Turun' });
+  assert.equal(env.DB.rows('SELECT message_template FROM shops')[0].message_template, 'Hai {kedai} {senarai_item}');
+  assert.equal(env.MEDIA.json('catalog/wakanda.json').shop.tpl, null);
 });
 
 test('PATCH validasi: nilai tak sah ditolak 400 dan tiada apa berubah', async () => {

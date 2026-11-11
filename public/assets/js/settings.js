@@ -8,8 +8,10 @@ import { h, icon, toast } from './ui.js';
 import { field, textArea, textInput, switchRow, swatches, formatBytes } from './forms.js';
 import { compressImage, ImageError } from './image.js';
 import {
-  LIMITS, MSG, cleanText, formatWhatsapp, isReservedLocally, normalizeSlug, normalizeWhatsapp, slugFormatIssue,
+  LIMITS, MSG, TEMPLATE_PLACEHOLDERS, cleanText, formatWhatsapp, isReservedLocally, normalizeSlug, normalizeWhatsapp,
+  slugFormatIssue, validateTemplate,
 } from './rules.js';
+import { addToCart, buildMessage, emptyCart, summarize } from './order.js';
 
 export function viewSettings(ctx) {
   const root = h('div', { class: 'stack' }, h('h1', {}, 'Tetapan kedai'));
@@ -71,6 +73,75 @@ export function viewSettings(ctx) {
     const nameRow = switchRow({ id: 's-askname', title: 'Minta nama pelanggan', desc: 'Pelanggan isi nama sebelum hantar ke WhatsApp.', checked: shop.askName, onChange: () => refresh() });
     const addrRow = switchRow({ id: 's-askaddr', title: 'Minta alamat pelanggan', desc: 'Sesuai untuk penghantaran.', checked: shop.askAddress, onChange: () => refresh() });
 
+    // ------------------------------------------------ templat mesej WhatsApp (Pro, F-12)
+    const canTemplate = shop.plan.customTemplate;
+    const tplIn = textArea({ rows: 7, maxlength: LIMITS.templateMax, placeholder: 'Kosongkan untuk guna templat lalai.', disabled: !canTemplate });
+    tplIn.value = shop.messageTemplate || '';
+    const tplF = field({ id: 's-tpl', label: 'Templat mesej order', input: tplIn, hint: `${tplIn.value.length}/${LIMITS.templateMax}` });
+    const tplPreview = h('pre', { class: 'msg-preview', id: 'tpl-preview', 'aria-live': 'polite' });
+    const sampleItems = new Map([
+      ['s1', { id: 's1', n: 'Nasi Lemak Ayam', p: 850, a: true }],
+      ['s2', { id: 's2', n: 'Teh Tarik', p: 350, a: true }],
+      ['s3', { id: 's3', n: 'Kek Tempahan', p: null, a: true }],
+    ]);
+    const sampleCart = emptyCart();
+    addToCart(sampleCart, 's1', 2, 'tak pedas');
+    addToCart(sampleCart, 's2', 1);
+    addToCart(sampleCart, 's3', 1);
+
+    function renderTplPreview() {
+      const t = validateTemplate(tplIn.value);
+      tplF.hint(`${tplIn.value.length}/${LIMITS.templateMax}${t.value === null ? ' · templat lalai digunakan' : ''}`);
+      tplF.msg(t.error || '');
+      tplPreview.textContent = buildMessage({
+        shop: { name: nameIn.value || shop.name, tpl: t.error ? null : t.value },
+        summary: summarize(sampleCart, sampleItems),
+        name: 'Ali',
+        address: addrRow.input.checked ? 'No 1, Jalan Contoh, Shah Alam' : '',
+        note: 'Ambil pukul 5 petang',
+      });
+    }
+
+    const chips = h(
+      'div',
+      { class: 'chips chips-wrap', role: 'group', 'aria-label': 'Masukkan maklumat ke dalam templat' },
+      TEMPLATE_PLACEHOLDERS.map((p) => {
+        const b = h('button', { type: 'button', class: 'chip', disabled: !canTemplate, title: p.label }, p.key);
+        b.addEventListener('click', () => {
+          tplIn.focus();
+          tplIn.setRangeText(p.key, tplIn.selectionStart, tplIn.selectionEnd, 'end');
+          tplIn.dispatchEvent(new Event('input'));
+        });
+        return b;
+      }),
+    );
+    const resetTpl = h('button', { type: 'button', class: 'btn btn-secondary btn-block', disabled: !canTemplate }, 'Guna templat lalai');
+    resetTpl.addEventListener('click', () => {
+      tplIn.value = '';
+      tplIn.dispatchEvent(new Event('input'));
+    });
+    tplIn.addEventListener('input', () => {
+      renderTplPreview();
+      refresh();
+    });
+    addrRow.input.addEventListener('change', renderTplPreview);
+    nameIn.addEventListener('input', renderTplPreview);
+
+    const templateSection = h(
+      'section',
+      { class: 'card stack' },
+      h('h2', {}, 'Mesej WhatsApp'),
+      canTemplate
+        ? h('p', { class: 'muted' }, 'Tulis ayat mesej order mengikut gaya kedai anda. Tekan butang untuk masukkan maklumat order.')
+        : h('p', { class: 'notice notice-warning' }, 'Templat mesej sendiri untuk pelan Pro. Pratonton di bawah ialah templat lalai. ', h('a', { href: '#/langganan' }, 'Naik taraf ke Pro')),
+      tplF.el,
+      chips,
+      canTemplate ? resetTpl : null,
+      h('p', { class: 'd-label' }, 'Pratonton (contoh order)'),
+      tplPreview,
+    );
+    renderTplPreview();
+
     // ------------------------------------------------ simpan
     const saveBtn = h('button', { type: 'button', class: 'btn btn-block', disabled: true }, 'Simpan perubahan');
 
@@ -88,6 +159,11 @@ export function viewSettings(ctx) {
       if (openRow.input.checked !== shop.isOpen) diff.isOpen = openRow.input.checked;
       if (nameRow.input.checked !== shop.askName) diff.askName = nameRow.input.checked;
       if (addrRow.input.checked !== shop.askAddress) diff.askAddress = addrRow.input.checked;
+      if (canTemplate) {
+        const t = validateTemplate(tplIn.value);
+        const next = t.error ? tplIn.value : t.value;
+        if (next !== shop.messageTemplate) diff.messageTemplate = next;
+      }
       return diff;
     }
 
@@ -167,6 +243,12 @@ export function viewSettings(ctx) {
       const errors = {};
       if ('name' in diff && (diff.name.length < LIMITS.nameMin || diff.name.length > LIMITS.nameMax)) errors.name = MSG.nama;
       if ('whatsapp' in diff && !normalizeWhatsapp(diff.whatsapp)) errors.whatsapp = MSG.whatsapp;
+      if ('messageTemplate' in diff) {
+        const t = validateTemplate(diff.messageTemplate);
+        if (t.error) errors.messageTemplate = t.error;
+        else diff.messageTemplate = t.value;
+      }
+      if (errors.messageTemplate) tplF.msg(errors.messageTemplate);
       if (errors.name) nameF.msg(errors.name);
       if (errors.whatsapp) waF.msg(errors.whatsapp);
       if (Object.keys(errors).length) return;
@@ -194,6 +276,7 @@ export function viewSettings(ctx) {
           }
           if (err.fields.whatsapp) waF.msg(err.fields.whatsapp);
           if (err.fields.description) descF.msg(err.fields.description);
+          if (err.fields.messageTemplate) tplF.msg(err.fields.messageTemplate);
         }
         toast(err.message, 'error');
         refresh();
@@ -320,6 +403,7 @@ export function viewSettings(ctx) {
         h('div', { class: 'stack-sm' }, h('h3', {}, 'Warna tema'), sw.el),
         h('div', { class: 'switch-list' }, openRow.el, nameRow.el, addrRow.el),
       ),
+      templateSection,
       saveBtn,
       h('section', { class: 'card stack' }, h('h2', {}, 'Banner'), bannerList, bannerNote, bannerStorage, fileIn, addBtn, upgrade, bannerMsg),
     );

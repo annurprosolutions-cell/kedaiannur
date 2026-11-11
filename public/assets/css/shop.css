@@ -123,3 +123,17 @@ body.sheet-open { overflow: hidden; }
   margin: 0; padding: var(--s3); border-radius: var(--radius); background: #f0fdf4; border: 1px solid #bbf7d0;
   font-family: var(--font); font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 40vh; overflow-y: auto;
 }
+
+/* karusel banner (Pro) */
+.banner-carousel { position: relative; }
+.banner-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
+.banner-track::-webkit-scrollbar { display: none; }
+.banner-track .shop-banner { flex: 0 0 100%; scroll-snap-align: start; border-radius: 0; }
+@media (min-width: 640px) { .banner-carousel { border-radius: 0 0 var(--radius) var(--radius); overflow: hidden; } }
+.banner-dots { position: absolute; left: 0; right: 0; bottom: var(--s2); display: flex; justify-content: center; gap: 0; }
+.banner-dot {
+  width: 44px; height: 44px; border: 0; background: transparent; padding: 0; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.banner-dot::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 255, 255, 0.6); box-shadow: 0 0 2px rgba(0, 0, 0, 0.5); }
+.banner-dot[aria-current="true"]::after { background: #fff; width: 20px; border-radius: 4px; }

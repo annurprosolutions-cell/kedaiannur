@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { effectivePlanCode, graceDays, loadPlan, formatMb } from '../lib/plan.js';
+import { effectivePlanCode, graceDays, loadPlan, formatMb, planStatus } from '../lib/plan.js';
 import { FakeD1 } from './helpers/d1.js';
 
 const env = { GRACE_DAYS: '7' };
@@ -56,4 +56,29 @@ test('formatMb', () => {
   assert.equal(formatMb(10485760), '10 MB');
   assert.equal(formatMb(157286400), '150 MB');
   assert.equal(formatMb(1572864), '1.5 MB');
+});
+
+test('planStatus: free, active, ending (14 hari dan kurang), grace, expired', () => {
+  const now = at('2026-11-10');
+  assert.deepEqual(planStatus(shop('free', null), env, now), { state: 'free', daysLeft: null, expiresAt: null, graceEndsAt: null });
+  assert.equal(planStatus(shop('pro', null), env, now).state, 'free', 'pro tanpa tarikh dianggap free');
+  assert.deepEqual(planStatus(shop('pro', '2026-12-31'), env, now), { state: 'active', daysLeft: 51, expiresAt: '2026-12-31', graceEndsAt: '2027-01-07' });
+  assert.equal(planStatus(shop('pro', '2026-11-24'), env, now).state, 'ending', 'tepat 14 hari');
+  assert.equal(planStatus(shop('pro', '2026-11-24'), env, now).daysLeft, 14);
+  assert.equal(planStatus(shop('pro', '2026-11-25'), env, now).state, 'active', '15 hari');
+  assert.deepEqual(planStatus(shop('pro', '2026-11-10'), env, now), { state: 'ending', daysLeft: 0, expiresAt: '2026-11-10', graceEndsAt: '2026-11-17' });
+  assert.deepEqual(planStatus(shop('pro', '2026-11-09'), env, now), { state: 'grace', daysLeft: 6, expiresAt: '2026-11-09', graceEndsAt: '2026-11-16' });
+  assert.equal(planStatus(shop('pro', '2026-11-03'), env, now).state, 'grace', 'hari terakhir toleransi');
+  assert.equal(planStatus(shop('pro', '2026-11-03'), env, now).daysLeft, 0);
+  assert.equal(planStatus(shop('pro', '2026-11-02'), env, now).state, 'expired');
+});
+
+test('planStatus selaras dengan effectivePlanCode pada setiap hari sekitar tarikh tamat', () => {
+  const s = shop('pro', '2026-11-10');
+  for (let d = -20; d <= 20; d++) {
+    const now = new Date(Date.UTC(2026, 10, 10 + d, 12));
+    const st = planStatus(s, env, now).state;
+    const eff = effectivePlanCode(s, env, now);
+    assert.equal(eff === 'pro', ['active', 'ending', 'grace'].includes(st), `hari ${d}: ${st} vs ${eff}`);
+  }
 });

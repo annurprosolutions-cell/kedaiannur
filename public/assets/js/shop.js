@@ -84,6 +84,61 @@ async function boot() {
   start(page);
 }
 
+// ================================================================ banner
+
+// Satu banner: gambar biasa. Lebih satu (Pro, sehingga 5): karusel scroll-snap yang berputar setiap 5 saat,
+// boleh disapu, berhenti bila disentuh, dan tak berputar sendiri jika pengguna memilih kurangkan animasi.
+function bannerBlock(urls, alt) {
+  if (!urls.length) return null;
+  const img = (src, i) =>
+    h('img', {
+      class: 'shop-banner', src, alt: urls.length > 1 ? `${alt} (${i + 1} daripada ${urls.length})` : alt, width: 1600, height: 800,
+      fetchpriority: i === 0 ? 'high' : null, loading: i === 0 ? null : 'lazy', decoding: 'async',
+    });
+  if (urls.length === 1) return img(urls[0], 0);
+
+  const track = h('div', { class: 'banner-track', 'aria-label': 'Banner kedai', role: 'region' }, urls.map(img));
+  const dots = urls.map((_, i) => {
+    const d = h('button', { type: 'button', class: 'banner-dot', 'aria-label': `Banner ${i + 1}` });
+    d.addEventListener('click', () => {
+      pause();
+      go(i);
+    });
+    return d;
+  });
+  let index = 0;
+  let timer = null;
+  let resumeAt = 0;
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function mark(i) {
+    index = i;
+    dots.forEach((d, j) => d.setAttribute('aria-current', String(j === i)));
+  }
+  function go(i) {
+    track.scrollTo({ left: i * track.clientWidth, behavior: reduce ? 'auto' : 'smooth' });
+    mark(i);
+  }
+  function pause() {
+    resumeAt = Date.now() + 10000;
+  }
+  track.addEventListener('scroll', () => {
+    const i = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
+    if (i !== index) mark(i);
+  }, { passive: true });
+  track.addEventListener('pointerdown', pause, { passive: true });
+  track.addEventListener('touchstart', pause, { passive: true });
+  if (!reduce) {
+    timer = setInterval(() => {
+      if (!document.contains(track)) return clearInterval(timer);
+      if (document.hidden || Date.now() < resumeAt) return;
+      go((index + 1) % urls.length);
+    }, 5000);
+  }
+  mark(0);
+  return h('div', { class: 'banner-carousel' }, track, h('div', { class: 'banner-dots' }, dots));
+}
+
 // ================================================================ kedai
 
 function start(page) {
@@ -114,11 +169,10 @@ function start(page) {
   const filter = { q: '', cat: '' };
 
   // ---------------- kepala kedai
-  const banner = catalog.banners && catalog.banners[0] ? imgUrl(catalog.banners[0].k) : '';
   const header = h(
     'header',
     { class: 'shop-head' },
-    banner ? h('img', { class: 'shop-banner', src: banner, alt: shop.name, width: 1600, height: 800, fetchpriority: 'high' }) : null,
+    bannerBlock((catalog.banners || []).map((b) => imgUrl(b.k)).filter(Boolean), shop.name),
     h(
       'div',
       { class: 'shop-wrap shop-title' },

@@ -10,6 +10,8 @@ import { viewSettings } from './settings.js';
 import { viewProducts, viewProductForm } from './products.js';
 import { viewCategories } from './categories.js';
 import { formatBytes } from './forms.js';
+import { viewBilling } from './billing.js';
+import { hiddenNotice, planBadge, planNotice } from './plannotice.js';
 
 const root = document.getElementById('app');
 const state = { me: null };
@@ -257,10 +259,6 @@ function renderSetupShell() {
   );
 }
 
-function placeholder(iconName, title, text) {
-  return h('section', { class: 'card placeholder' }, icon(iconName), h('h2', {}, title), h('p', { class: 'muted' }, text));
-}
-
 // ---------------------------------------------------------------- Skrin
 
 function meter(label, used, max, fmt = (n) => String(n)) {
@@ -313,10 +311,12 @@ function viewDashboard() {
     shop.catalogDirty
       ? h('p', { class: 'notice notice-warning', role: 'status' }, 'Katalog awam belum dikemas kini sepenuhnya. Simpan sebarang perubahan untuk cuba semula.')
       : null,
+    planNotice(shop),
+    hiddenNotice(shop),
     h(
       'section',
       { class: 'card stack-sm' },
-      h('div', { class: 'shop-head' }, h('h2', {}, shop.name), h('span', { class: isPro ? 'badge badge-pro' : 'badge' }, plan.name)),
+      h('div', { class: 'shop-head' }, h('h2', {}, shop.name), planBadge(shop)),
       h('p', { class: 'muted shop-link' }, shopUrl(shop).replace(/^https?:\/\//, '')),
       h('p', { class: 'caption' }, shop.isOpen ? 'Kedai sedang buka.' : 'Kedai sedang tutup. Pelanggan tak boleh hantar order.'),
       shareActions(shop),
@@ -362,7 +362,7 @@ function viewTetapan() {
 
 function viewLangganan() {
   setTitle('Langganan');
-  return placeholder('kad', 'Langganan', 'Bandingan pelan dan bayaran BCL akan dibina dalam Fasa 6.');
+  return viewBilling(ctx);
 }
 
 function viewAkaun() {

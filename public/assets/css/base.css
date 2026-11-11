@@ -216,3 +216,10 @@ textarea.input { padding: var(--s3); min-height: 96px; resize: vertical; line-he
   background: var(--surface); color: var(--secondary); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
 }
 .chip[aria-pressed="true"] { background: var(--primary); border-color: var(--primary); color: #fff; }
+.chips-wrap { flex-wrap: wrap; overflow: visible; }
+.chip:disabled { opacity: 0.5; cursor: not-allowed; }
+.msg-preview {
+  margin: 0; padding: var(--s3); border-radius: var(--radius); background: #f0fdf4; border: 1px solid #bbf7d0;
+  font-family: var(--font); font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 40vh; overflow-y: auto;
+}
+.d-label { font-weight: 600; font-size: 15px; margin: 0; }
