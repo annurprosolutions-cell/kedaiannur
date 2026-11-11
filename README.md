@@ -13,7 +13,8 @@ Stack: Cloudflare Pages (frontend statik tanpa build step) + Pages Functions (AP
 | 3 | Kategori (S-12), produk (S-10, S-11), had pelan di server, snapshot `catalog/<slug>.json` ke R2, dashboard dengan meter (S-09), pembersihan gambar yatim | Kod siap, ujian lulus |
 | 4 | Halaman kedai awam `/<slug>` (S-02 hingga S-06), troli, hantar order ke WhatsApp, pratonton link, salin dan kongsi link (S-09), fallback 404.html | Kod siap, ujian lulus |
 | 5 | Status pelan (aktif, hampir tamat, toleransi, tamat) dengan notis di dashboard dan Langganan (S-14), templat mesej WhatsApp Pro dengan pratonton, banner berputar Pro, buang branding Pro | Kod siap, ujian lulus |
-| 6 hingga 8 | Ikut IPD | Belum mula |
+| 7 | Panel superadmin `/admin/`: ringkasan kiraan, senarai dan carian kedai (S-16), tetapkan pelan, tambah bulan, gantung (S-17), padankan bayaran, slug reserved, bina semula katalog (S-18), audit log | Kod siap, ujian lulus |
+| 6, 8 | BCL (ditahan atas permintaan), penutup | Belum mula |
 
 ## Struktur
 
@@ -169,9 +170,14 @@ baharu kedai itu, jika berumur lebih 6 jam dan tak dirujuk oleh produk atau bann
   `active`, `ending` (14 hari atau kurang), `grace` (dalam `GRACE_DAYS`), `expired`. Notis dipapar di dashboard dan S-14.
 - Templat mesej (Pro): mesti mengandungi `{senarai_item}`, maksimum 800 aksara; kosong = templat lalai. Bila pelan turun, templat
   kekal dalam D1 tetapi tak diterbitkan.
-- Sementara panel superadmin (Fasa 7) belum ada, pelan boleh diuji melalui D1 Console, kemudian simpan apa-apa tetapan untuk bina
-  semula snapshot:
+- Tukar pelan melalui panel superadmin (`/admin/`, Fasa 7). Jika diubah terus dalam D1 Console, tekan "Bina semula semua" di panel
+  supaya katalog awam ikut serta.
 
-  ```sql
-  UPDATE shops SET plan_code = 'pro', plan_expires_at = '2026-12-31' WHERE slug = 'slug-kedai';
-  ```
+## Panel superadmin (Fasa 7)
+
+- `/admin/`: log masuk Google dengan e-mel dalam `SUPERADMIN_EMAILS`. E-mel lain nampak "Akses ditolak"; API `/api/admin/*` pulang 403.
+- Tambah bulan ikut BSD peraturan 4 (`lib/subscription.js`, dikongsi dengan webhook BCL Fasa 6): dari tarikh tamat jika masih aktif atau
+  dalam toleransi, jika tidak dari hari ini; 31 Jan + 1 bulan = 28/29 Feb dan kembali ke 31hb.
+- Setiap tindakan (pelan, tambah bulan, gantung, padankan bayaran, slug reserved, bina semula) direkod dalam `audit_log`.
+  Membuka tab Bayaran membuang rekod audit lebih 12 bulan.
+- Bina semula katalog berjalan 8 kedai setiap panggilan supaya kekal dalam had CPU dan subrequest Functions percuma.

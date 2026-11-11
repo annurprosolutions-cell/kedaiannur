@@ -195,7 +195,7 @@ test('superadmin: isAdmin ikut SUPERADMIN_EMAILS (tak sensitif huruf); peniaga b
   const adminLogin = await login({ sub: 'admin-sub', email: 'admin@annurpro.test' });
   assert.equal(adminLogin.json.isAdmin, true);
   const adminRes = await callApi(env, 'GET', '/api/admin/shops', withCookie(cookieFrom(adminLogin)));
-  assert.equal(adminRes.status, 404, 'lepas semakan admin; endpoint belum wujud (Fasa 7)');
+  assert.equal(adminRes.status, 200, 'lepas semakan admin');
 });
 
 test('laluan /api tak wujud pulangkan JSON 404', async () => {

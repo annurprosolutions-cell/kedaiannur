@@ -36,6 +36,7 @@ const TOKEN_W = token('W'); // pengguna tanpa kedai untuk wizard
 const TOKEN_E = token('E'); // pengguna dengan kedai untuk ujian tetapan dan banner
 const TOKEN_P = token('P'); // pengguna dengan kedai untuk ujian produk dan kategori (Fasa 3)
 const TOKEN_R = token('R'); // pengguna dengan kedai Pro yang tamat dalam 10 hari (Fasa 5)
+const TOKEN_M = token('M'); // superadmin (Fasa 7); e-mel dalam SUPERADMIN_EMAILS
 const XSS_NAME = '<img src=x onerror="window.__xss=1">';
 const PNG_1X1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 
@@ -139,14 +140,18 @@ INSERT INTO users (id, google_sub, email, name) VALUES
   ('u-d', 'sub-d', 'kopi@ujian.test', 'Pak Kopi'),
   ('u-e', 'sub-e', 'tetapan@ujian.test', 'Kak Tetapan'),
   ('u-p', 'sub-p', 'produk@ujian.test', 'Abang Produk'),
-  ('u-r', 'sub-r', 'pro@ujian.test', 'Puan Pro');
+  ('u-r', 'sub-r', 'pro@ujian.test', 'Puan Pro'),
+  ('u-m', 'sub-m', 'admin@ujian.test', 'Bos Admin');
 INSERT INTO sessions (token_hash, user_id, expires_at) VALUES
   ('${sha(TOKEN_A)}', 'u-a', datetime('now', '+1 day')),
   ('${sha(TOKEN_B)}', 'u-b', datetime('now', '+1 day')),
   ('${sha(TOKEN_W)}', 'u-w', datetime('now', '+1 day')),
   ('${sha(TOKEN_E)}', 'u-e', datetime('now', '+1 day')),
   ('${sha(TOKEN_P)}', 'u-p', datetime('now', '+1 day')),
-  ('${sha(TOKEN_R)}', 'u-r', datetime('now', '+1 day'));
+  ('${sha(TOKEN_R)}', 'u-r', datetime('now', '+1 day')),
+  ('${sha(TOKEN_M)}', 'u-m', datetime('now', '+1 day'));
+INSERT INTO payments (id, order_no, payer_email, amount_sen, period, quantity, status) VALUES
+  ('pay-u', 'BCL-UJI-1', 'tersalah@ujian.test', 5800, 'monthly', 2, 'unmatched');
 INSERT INTO shops (id, owner_user_id, slug, name, whatsapp, description) VALUES
   ('s-b', 'u-b', 'wakanda', 'Kedai Wakanda', '60123456789', ''),
   ('s-d', 'u-d', 'kopi-o', 'Kopi O Pak Kopi', '60111111111', ''),
@@ -1103,6 +1108,105 @@ test('IPD 5.3 tempoh toleransi: notis dan lencana Toleransi; ciri Pro kekal', as
   await page.getByText(/Langganan Pro sudah tamat/).waitFor();
   await page.getByText('1 banner tidak dipaparkan di kedai awam').waitFor();
   assert.equal((await apiGet('/api/me', TOKEN_R)).json.shop.plan.code, 'free');
+  await context.close();
+});
+
+// ================================================================ Fasa 7
+
+test('IPD "Peniaga cuba jadi admin": /admin/ papar Akses ditolak dan API 403', async () => {
+  const { context, page } = await newPage({ sid: TOKEN_B });
+  await page.goto(`${BASE}/admin/`);
+  await page.getByRole('heading', { name: 'Akses ditolak' }).waitFor();
+  assert.equal((await apiGet('/api/admin/shops', TOKEN_B)).status, 403);
+  await context.close();
+});
+
+test('S-16 superadmin: ringkasan kiraan, carian, butiran kedai', async () => {
+  const { context, page } = await newPage({ width: 1280, height: 900, sid: TOKEN_M });
+  await page.goto(`${BASE}/admin/`);
+  await page.getByRole('heading', { level: 1, name: 'Kedai' }).waitFor();
+  const api = (await apiGet('/api/admin/shops', TOKEN_M)).json;
+  const total = page.locator('.tile', { hasText: 'Jumlah kedai' }).locator('.tile-value');
+  await total.getByText(String(api.summary.shops), { exact: true }).waitFor();
+  assert.ok(api.summary.shops >= 6, `${api.summary.shops} kedai`); // 5 seed + 1 dari wizard
+  await page.getByLabel('Cari kedai').fill('kopi');
+  await page.waitForFunction(() => document.querySelectorAll('.data-table tbody tr').length === 1);
+  await page.getByRole('link', { name: 'Kopi O Pak Kopi' }).waitFor();
+  await page.getByLabel('Cari kedai').fill('');
+  await page.getByLabel('Tapis pelan').selectOption('pro'); // serta-merta selepas mengosongkan carian
+  await page.getByRole('link', { name: 'Kedai Pro' }).waitFor();
+  await page.waitForTimeout(600); // biar carian tertunda (debounce) selesai; keputusan mesti kekal
+  const rows = await page.locator('.data-table tbody tr').allTextContents();
+  assert.ok(rows.length >= 1 && rows.every((r) => !r.includes('Percuma')), rows.join(' | '));
+  assert.ok(rows.some((r) => r.includes('Kedai Pro')));
+  await shot(page, '60-admin-senarai');
+  await context.close();
+
+  const phone = await newPage({ sid: TOKEN_M });
+  await phone.page.goto(`${BASE}/admin/`);
+  await phone.page.locator('.data-table').waitFor();
+  await noHorizontalScroll(phone.page);
+  await phone.context.close();
+});
+
+test('S-17: tetapkan Pro dengan tarikh, tambah bulan, gantung (kedai awam 404) dan buka gantung; audit direkod', async () => {
+  const { context, page } = await newPage({ width: 1280, height: 900, sid: TOKEN_M });
+  page.on('dialog', (d) => d.accept());
+  await page.goto(`${BASE}/admin/#/kedai/s-d`);
+  await page.getByRole('heading', { level: 1, name: 'Kopi O Pak Kopi' }).waitFor();
+  await page.getByLabel('Pelan', { exact: true }).selectOption('pro');
+  await page.getByLabel('Tarikh tamat').fill('2099-01-31');
+  await page.getByRole('button', { name: 'Simpan pelan' }).click();
+  await page.getByText('Pelan dikemas kini.').waitFor();
+  await page.getByText('Tamat 31/01/2099').waitFor();
+  await page.getByRole('button', { name: '+1 bulan' }).click();
+  await page.getByText('Tamat 28/02/2099').waitFor(); // 31 Jan + 1 bulan = 28 Feb (BSD peraturan 4)
+  await page.getByRole('button', { name: '+1 bulan' }).click();
+  await page.getByText('Tamat 31/03/2099').waitFor(); // kembali ke 31hb
+  assert.equal((await fetch(`${BASE}/kopi-o`)).status, 200, 'snapshot diterbitkan selepas tukar pelan');
+
+  await page.getByLabel('Sebab gantung (dipaparkan kepada peniaga)').fill('Ujian penggantungan');
+  await page.getByRole('button', { name: 'Gantung kedai' }).click();
+  await page.getByText('Digantung. Sebab: Ujian penggantungan').waitFor();
+  assert.equal((await fetch(`${BASE}/kopi-o`)).status, 404, 'halaman awam ditutup');
+  await shot(page, '61-admin-butiran');
+  await page.getByRole('button', { name: 'Buka gantung' }).click();
+  await page.getByText('Gantungan dibuka.').waitFor();
+  assert.equal((await fetch(`${BASE}/kopi-o`)).status, 200);
+
+  const audit = await page.locator('.audit-list li').allTextContents();
+  for (const label of ['Tetapkan pelan', 'Tambah bulan', 'Gantung', 'Buka gantung']) assert.ok(audit.some((t) => t.includes(label)), label);
+  assert.ok(audit.every((t) => t.includes('admin@ujian.test')));
+  await context.close();
+});
+
+test('S-18: padankan bayaran tak padan, urus slug reserved, bina semula katalog', async () => {
+  const { context, page } = await newPage({ width: 1280, height: 900, sid: TOKEN_M });
+  page.on('dialog', (d) => d.accept());
+  await page.goto(`${BASE}/admin/#/selenggara`);
+  await page.getByText('BCL-UJI-1').waitFor();
+  assert.equal(await page.getByLabel('Bilangan bulan untuk BCL-UJI-1').inputValue(), '2');
+  await page.getByLabel('Slug kedai untuk BCL-UJI-1').fill('kedai-produk');
+  await page.getByRole('button', { name: 'Padankan' }).click();
+  await page.getByText(/Dipadankan\. Pro tamat \d{2}\/\d{2}\/\d{4}/).waitFor();
+  await page.getByText('Tiada bayaran tak padan.').waitFor();
+  const prod = (await apiGet('/api/me', TOKEN_P)).json.shop;
+  assert.equal(prod.plan.code, 'pro', 'kedai yang dipadankan kini Pro');
+  assert.equal((await apiGet('/api/billing', TOKEN_P)).json.payments[0].orderNo, 'BCL-UJI-1', 'peniaga nampak bayaran dalam sejarah');
+
+  await page.getByLabel('Slug reserved baharu').fill('BankPalsu');
+  await page.getByRole('button', { name: 'Tambah' }).click();
+  await page.locator('.slug-chip', { hasText: 'bankpalsu' }).waitFor();
+  const reserved = await fetch(`${BASE}/api/slug-check?slug=bankpalsu`, { headers: { Cookie: `__Host-sid=${TOKEN_A}` } });
+  assert.equal(reserved.status, 401, 'pengguna A sudah log keluar dalam ujian awal');
+  assert.equal((await apiGet('/api/slug-check?slug=bankpalsu', TOKEN_P)).json.reason, 'reserved');
+  await page.getByRole('button', { name: 'Buang bankpalsu' }).click();
+  await page.locator('.slug-chip', { hasText: 'bankpalsu' }).waitFor({ state: 'detached' });
+  await touchTargets(page, '.slug-x');
+
+  await page.getByRole('button', { name: 'Bina semula semua' }).click();
+  await page.getByText(/Selesai: \d+ katalog dibina semula\./).waitFor({ timeout: 30000 });
+  await shot(page, '62-admin-selenggara');
   await context.close();
 });
 
