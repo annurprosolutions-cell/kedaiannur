@@ -125,5 +125,6 @@ test('GET /api/plans awam: harga dan had dari jadual plans', async () => {
 
 test('slug "terma" disekat kerana bertembung dengan halaman terma', async () => {
   assert.ok(isReservedLocally('terma'));
+  assert.ok(isReservedLocally('offline'));
   assert.equal((await req(a, 'POST', '/api/shop', { ...SHOP_BODY, slug: 'terma' })).status, 409);
 });

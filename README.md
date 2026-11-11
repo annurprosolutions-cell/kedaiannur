@@ -16,6 +16,7 @@ Stack: Cloudflare Pages (frontend statik tanpa build step) + Pages Functions (AP
 | 7 | Panel superadmin `/admin/`: ringkasan kiraan, senarai dan carian kedai (S-16), tetapkan pelan, tambah bulan, gantung (S-17), padankan bayaran, slug reserved, bina semula katalog (S-18), audit log | Kod siap, ujian lulus |
 | 8 | Landing page (S-01) dengan tangkapan skrin sebenar, halaman `/privasi` dan `/terma`, eksport data JSON dan padam kedai (S-15), `/api/plans` awam, ukuran LCP | Kod siap, ujian lulus. Teks privasi dan terma ialah draf: semak sebelum launch |
 | 6 | Bayaran BCL dan webhook | Ditahan atas permintaan |
+| 8b | Tema baharu landing (gelap midnight navy + aksen amber, mod cerah), PWA (manifest, service worker, ikon, offline, kad Pasang app) | Kod siap, ujian lulus |
 
 ## Struktur
 
@@ -23,7 +24,8 @@ Stack: Cloudflare Pages (frontend statik tanpa build step) + Pages Functions (AP
 public/            fail statik yang dihidang (build output directory)
   _routes.json     Functions hanya untuk /api/* dan /<slug>; fail statik dikecualikan
   _headers         CSP dan header keselamatan untuk fail statik
-  index.html       landing page (S-01); privasi.html dan terma.html di sebelahnya
+  index.html       landing page (S-01); privasi.html, terma.html dan offline.html di sebelahnya
+  manifest.webmanifest, sw.js   PWA (lihat bahagian Tema dan PWA)
   app/             dashboard peniaga (S-07 hingga S-15)
   admin/           panel superadmin (Fasa 7)
   assets/          CSS dan modul JS
@@ -31,7 +33,7 @@ functions/api/     Pages Functions (API): auth, me, shop, shop/banners, slug-che
 functions/[slug].js halaman kedai awam
 lib/               kod kongsi untuk Functions (tidak dihidang kepada awam)
 db/0001_init.sql   skema D1 (jalankan sekali dalam Console)
-scripts/           landing-shots.js: jana semula tangkapan skrin landing (public/assets/img/landing)
+scripts/           landing-shots.js (tangkapan skrin landing), make-icons.js (ikon PWA)
 tests/             ujian unit (node --test) dan e2e (Playwright + wrangler)
 ```
 
@@ -202,6 +204,20 @@ WRANGLER_BIN=<path ke wrangler.js> node scripts/landing-shots.js
 - LCP halaman kedai diukur dalam e2e: rangkaian dimodelkan sebagai Slow 4G (1.6 Mbps dikongsi, RTT 150 ms, +3 RTT untuk
   sambungan pertama) dan CPU diperlahankan 4x, dengan banner WebP 1600x800 sebenar (~115 KB). Keputusan terakhir sekitar 1.9 s
   (sasaran 2.5 s). Ini anggaran makmal pada `wrangler pages dev`; semak semula dengan PageSpeed Insights selepas launch.
+
+## Tema dan PWA
+
+- Tema landing, privasi, terma dan offline ada dalam `public/assets/css/site.css` sahaja: gelap (lalai, tidak ikut tetapan sistem) dengan butang tukar
+  ke cerah. Pilihan disimpan dalam `localStorage` (`kedai-tema`) dan dikenakan oleh `assets/js/theme.js` sebelum halaman dilukis.
+  Dashboard `/app/` kekal dengan tema terangnya; tukar token dalam `base.css` jika mahu ia mengikut.
+- Manifest `/manifest.webmanifest` (scope `/`, start `/app/`), ikon PNG di `assets/icons/` (jana semula dengan `node scripts/make-icons.js`),
+  dan screenshot untuk dialog pemasangan (jana dengan `scripts/landing-shots.js`).
+- `sw.js`: **network-first**, kerana fail tiada hash dalam nama dan cache-first akan menghidang JS lama selepas deploy. Cache hanya dipakai bila
+  rangkaian gagal (halaman yang pernah dibuka, atau `offline.html`). Hanya landing, privasi, terma, `/app/` dan `/assets/` disentuh; `/api/*`,
+  `/admin/*` dan halaman kedai `/<slug>` tak pernah dicache. Naikkan `VERSION` dalam `sw.js` hanya jika struktur cache berubah.
+- Pasang: Chrome/Edge/Android tunjuk butang "Pasang app" (landing dan Akaun). iPhone: Safari, Kongsi, Tambah ke Skrin Utama.
+- Pages menukar `/x.html` kepada `/x`. Setiap halaman statik baharu di akar mesti dikecualikan dalam `_routes.json` dalam **kedua-dua** bentuk
+  (`/x.html` dan `/x`); `tests/static.test.js` menguatkuasakannya. Tambah juga nama itu ke `EXTRA_RESERVED` dalam `rules.js`.
 
 ## Senarai semak launch (IPD seksyen 9)
 

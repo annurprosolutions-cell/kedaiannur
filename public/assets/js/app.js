@@ -12,6 +12,7 @@ import { viewCategories } from './categories.js';
 import { formatBytes } from './forms.js';
 import { viewBilling } from './billing.js';
 import { hiddenNotice, planBadge, planNotice } from './plannotice.js';
+import { registerServiceWorker, onInstallChange, promptInstall } from './pwa.js';
 
 const root = document.getElementById('app');
 const state = { me: null };
@@ -428,6 +429,21 @@ function accountData(shop) {
   );
 }
 
+// Kad "Pasang app": hanya muncul bila pelayar menawarkan pemasangan (Chrome, Edge, Android) dan app belum dipasang.
+function installCard() {
+  const card = h(
+    'section',
+    { class: 'card stack-sm', hidden: true },
+    h('h2', {}, 'Pasang app'),
+    h('p', { class: 'muted' }, 'Buka Kedai AnnurPro terus dari skrin utama atau desktop, tanpa perlu buka pelayar.'),
+    h('button', { type: 'button', class: 'btn btn-block', onclick: () => promptInstall() }, 'Pasang app'),
+  );
+  onInstallChange((ok) => {
+    card.hidden = !ok;
+  });
+  return card;
+}
+
 function viewAkaun() {
   setTitle('Akaun');
   const user = state.me.user;
@@ -441,6 +457,7 @@ function viewAkaun() {
       h('div', { class: 'profile-row' }, h('span', { class: 'label' }, 'Nama'), h('span', { class: 'value' }, user.name || '-')),
       h('div', { class: 'profile-row' }, h('span', { class: 'label' }, 'E-mel Google'), h('span', { class: 'value' }, user.email)),
     ),
+    installCard(),
     accountData(state.me.shop),
     h('button', { type: 'button', class: 'btn btn-secondary btn-block', onclick: (e) => logout(e.currentTarget) }, icon('keluar'), 'Log keluar'),
   );
@@ -480,4 +497,5 @@ window.addEventListener('hashchange', () => {
   if (state.me && state.me.shop) renderShell();
 });
 
+registerServiceWorker();
 boot();

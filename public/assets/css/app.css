@@ -3,7 +3,7 @@
 .app-header {
   position: sticky; top: 0; z-index: 10;
   display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
-  height: 56px; padding: 0 var(--s4);
+  height: 56px; padding: 0 max(var(--s4), env(safe-area-inset-right)) 0 max(var(--s4), env(safe-area-inset-left));
   background: var(--surface); border-bottom: 1px solid var(--border);
 }
 .brand { display: flex; align-items: center; gap: var(--s2); font-weight: 700; color: var(--text); text-decoration: none; white-space: nowrap; }
@@ -11,7 +11,7 @@
 
 .app-main {
   max-width: 960px; margin: 0 auto;
-  padding: var(--s4) var(--s4) calc(96px + env(safe-area-inset-bottom));
+  padding: var(--s4) max(var(--s4), env(safe-area-inset-right)) calc(96px + env(safe-area-inset-bottom)) max(var(--s4), env(safe-area-inset-left));
 }
 
 .bottom-nav {
@@ -130,3 +130,6 @@ select.input { appearance: auto; background: var(--surface); }
 
 /* ---- Fasa 8: akaun ---- */
 .danger-zone { border-color: #fecaca; }
+
+/* ---- PWA ---- */
+html { overscroll-behavior-y: none; }

@@ -244,6 +244,29 @@ UPDATE shops SET storage_bytes = (SELECT SUM(bytes) FROM products) + ${banner.le
     await page.waitForFunction(() => [...document.images].every((i) => i.complete));
     await save('produk');
     await context.close();
+
+    // Dashboard di desktop (1280 x 800, skala 1) untuk dialog pemasangan PWA di desktop.
+    const desk = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    await desk.addCookies([{ name: '__Host-sid', value: TOKEN, domain: '127.0.0.1', path: '/', secure: true, httpOnly: true, sameSite: 'Lax' }]);
+    await desk.route('**/*', (route) => {
+      const url = route.request().url();
+      if (url.startsWith(`${MEDIA}/`)) {
+        const bytes = media.get(decodeURIComponent(new URL(url).pathname.slice(1)));
+        return bytes ? route.fulfill({ contentType: 'image/webp', body: bytes }) : route.fulfill({ status: 404, body: '' });
+      }
+      return url.startsWith(BASE) ? route.continue() : route.abort();
+    });
+    const dpage = await desk.newPage();
+    await dpage.goto(`${BASE}/app/`);
+    await dpage.locator('.meter-bar').first().waitFor();
+    await dpage.evaluate((host) => {
+      for (const el of document.querySelectorAll('.shop-link')) el.textContent = el.textContent.replace(host, 'kedai.annurpro.com');
+    }, `127.0.0.1:${PORT}`);
+    await dpage.waitForTimeout(300);
+    const dwebp = await toWebp(draw, await dpage.screenshot());
+    writeFileSync(join(OUT, 'dashboard-desktop.webp'), dwebp);
+    console.log(`dashboard-desktop.webp ${Math.round(dwebp.length / 1024)} KB`);
+    await desk.close();
   } finally {
     await browser.close();
     if (server) {

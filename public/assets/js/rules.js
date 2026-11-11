@@ -55,8 +55,8 @@ export const MSG = {
 };
 
 // Slug yang tak boleh digunakan walaupun tiada dalam jadual reserved_slugs: ia bertembung dengan fail statik di akar
-// (index.html, 404.html, terma.html). privasi sudah ada dalam reserved_slugs.
-const EXTRA_RESERVED = new Set(['index', '404', 'terma']);
+// (index.html, 404.html, terma.html, offline.html). privasi sudah ada dalam reserved_slugs.
+const EXTRA_RESERVED = new Set(['index', '404', 'terma', 'offline']);
 
 export function isReservedLocally(slug) {
   return EXTRA_RESERVED.has(slug);

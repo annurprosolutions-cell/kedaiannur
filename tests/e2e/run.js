@@ -226,8 +226,9 @@ window.google = { accounts: { id: {
   disableAutoSelect() { window.__gsiDisabled = true; }
 } } };`;
 
-async function newPage({ width = 360, height = 780, sid, permissions } = {}) {
-  const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1, permissions });
+async function newPage({ width = 360, height = 780, sid, permissions, sw = false } = {}) {
+  // Service worker disekat kecuali ujian PWA: ia memintas context.route dan boleh menyembunyikan ralat rangkaian.
+  const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1, permissions, serviceWorkers: sw ? 'allow' : 'block' });
   if (sid) {
     await context.addCookies([
       { name: '__Host-sid', value: sid, domain: '127.0.0.1', path: '/', secure: true, httpOnly: true, sameSite: 'Lax' },
@@ -257,7 +258,8 @@ async function newPage({ width = 360, height = 780, sid, permissions } = {}) {
   page.on('console', (msg) => {
     const text = msg.text();
     // 401 daripada /api/me (belum login) dan 404 halaman yang sengaja diuji sebagai tak wujud ialah aliran biasa.
-    if (msg.type() === 'error' && !/Failed to load resource: the server responded with a status of (401|404)/.test(text)) {
+    // ERR_INTERNET_DISCONNECTED: simulasi offline dalam ujian PWA (setOffline), bukan ralat aplikasi.
+    if (msg.type() === 'error' && !/Failed to load resource: (the server responded with a status of (401|404)|net::ERR_INTERNET_DISCONNECTED)/.test(text)) {
       consoleProblems.push(`${page.url()}: ${text}`);
     }
   });
@@ -311,13 +313,18 @@ test('S-01 landing: hero, harga daripada /api/plans, contoh kedai tersembunyi, t
   const pro = plans.find((p) => p.code === 'pro');
   await page.locator('[data-plan="pro.month"]').getByText(`RM${pro.priceMonthSen / 100}`).waitFor();
   assert.equal(await page.locator('[data-plan="free.products"]').textContent(), String(plans.find((p) => p.code === 'free').maxProducts));
-  assert.equal(await page.getByRole('link', { name: 'Buka kedai percuma' }).getAttribute('href'), '/app/');
+  assert.equal(await page.locator('.hero-cta').getByRole('link', { name: 'Buka kedai percuma' }).getAttribute('href'), '/app/');
   assert.equal(await page.getByRole('link', { name: 'Lihat contoh kedai' }).isVisible(), false, '/contoh belum wujud');
   await page.locator('.site-footer a[href^="mailto:bantuan@ujian.test"]').waitFor();
   for (const href of ['/privasi', '/terma']) assert.equal(await page.locator(`.site-footer a[href="${href}"]`).count(), 1);
+  // Bar CTA melekat muncul selepas hero keluar dari skrin (phone sahaja).
+  assert.equal(await page.locator('.cta-bar.show').count(), 0);
+  await page.evaluate(() => window.scrollTo(0, 1400));
+  await page.locator('.cta-bar.show').waitFor();
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.locator('.hero-shot img').evaluate((img) => img.decode());
   await noHorizontalScroll(page);
-  await touchTargets(page, '.hero-cta .btn, .site-header .btn');
+  await touchTargets(page, '.hero-cta .btn, .icon-toggle, .seg button, .faq-list summary, .cta-bar .btn');
   await shot(page, '00-landing');
   await context.close();
 
@@ -1406,6 +1413,209 @@ test('IPD LCP halaman kedai: Slow 4G (1.6 Mbps, RTT 150 ms) dan CPU 4x, banner W
   const sheet = page.getByRole('dialog');
   await sheet.getByText('Jumlah').waitFor();
   assert.ok(!/\bnull\b/.test(await sheet.innerText()), await sheet.innerText());
+  await context.close();
+});
+
+
+// ================================================================ Tema dan PWA
+
+// Nisbah kontras WCAG antara warna teks dan latar sebenar (naik ke ibu bapa sehingga jumpa latar legap).
+async function contrastOf(page, selector) {
+  return page.evaluate((sel) => {
+    const parse = (c) => (c.match(/[\d.]+/g) || []).map(Number);
+    const lum = ([r, g, b]) => {
+      const f = (v) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+      return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+    };
+    const el = document.querySelector(sel);
+    const fg = parse(getComputedStyle(el).color);
+    let node = el;
+    let bg = [0, 0, 0, 0];
+    while (node) {
+      bg = parse(getComputedStyle(node).backgroundColor);
+      if (bg.length === 3 || bg[3] === undefined || bg[3] > 0.95) break;
+      node = node.parentElement;
+    }
+    const [a, b] = [lum(fg), lum(bg)].sort((x, y) => y - x);
+    return (a + 0.05) / (b + 0.05);
+  }, selector);
+}
+
+test('Tema landing: gelap lalai, tukar ke cerah dan kekal selepas muat semula, kontras teks >= 4.5:1 dalam kedua-dua tema', async () => {
+  const { context, page } = await newPage();
+  await page.goto(`${BASE}/`);
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'dark');
+  const checks = ['.hero .lead', '.hero-cta .btn', '.eyebrow', '.card p', '.faq-list summary', '.accent', '.site-footer', '.seg button[aria-pressed="false"]'];
+  for (const sel of checks) {
+    const ratio = await contrastOf(page, sel);
+    assert.ok(ratio >= 4.5, `gelap ${sel}: ${ratio.toFixed(2)}`);
+  }
+  await page.getByRole('button', { name: 'Tukar tema cerah atau gelap' }).click();
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'light');
+  for (const sel of checks) {
+    const ratio = await contrastOf(page, sel);
+    assert.ok(ratio >= 4.5, `cerah ${sel}: ${ratio.toFixed(2)}`);
+  }
+  await shot(page, '00-landing-cerah');
+  await page.reload();
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'light', 'pilihan tema diingat');
+  await page.getByRole('button', { name: 'Tukar tema cerah atau gelap' }).click();
+  await context.close();
+
+  // Tanpa pilihan tersimpan, kekal gelap walaupun sistem cerah (rupa utama); cerah hanya jika dipilih.
+  const lightOs = await newPage();
+  await lightOs.page.emulateMedia({ colorScheme: 'light' });
+  await lightOs.page.goto(`${BASE}/privasi`);
+  assert.equal(await lightOs.page.evaluate(() => document.documentElement.dataset.theme), 'dark');
+  await lightOs.context.close();
+});
+
+test('Landing: menu phone, harga bulanan/tahunan dengan jimat dikira daripada /api/plans, FAQ boleh dibuka', async () => {
+  const { context, page } = await newPage();
+  await page.goto(`${BASE}/`);
+  const menu = page.getByRole('button', { name: 'Buka menu' });
+  await menu.click();
+  const panel = page.locator('#menu-panel');
+  await panel.waitFor();
+  await touchTargets(page, '#menu-panel a');
+  await shot(page, '00-landing-menu');
+  await panel.getByRole('link', { name: 'Harga' }).click();
+  await panel.waitFor({ state: 'hidden' });
+  assert.equal(await page.getByRole('button', { name: 'Buka menu' }).getAttribute('aria-expanded'), 'false');
+
+  const pro = (await (await fetch(`${BASE}/api/plans`)).json()).plans.find((p) => p.code === 'pro');
+  await page.getByRole('button', { name: 'Tahunan' }).click();
+  await page.locator('[data-plan="pro.year"]').getByText(`RM${pro.priceYearSen / 100}`).waitFor();
+  assert.equal(await page.locator('[data-price="month"]').isVisible(), false);
+  const save = (pro.priceMonthSen * 12 - pro.priceYearSen) / 100;
+  await page.getByText(`Jimat RM${save}`).waitFor();
+  await page.getByRole('button', { name: 'Bulanan' }).click();
+  assert.equal(await page.locator('[data-save]').isVisible(), false);
+
+  const first = page.locator('.faq-list details').first();
+  await first.locator('summary').click();
+  assert.equal(await first.evaluate((d) => d.open), true);
+  await noHorizontalScroll(page);
+  await context.close();
+});
+
+test('PWA: manifest sah, ikon wujud dengan saiz sebenar, scope merangkumi start_url, kedai awam tak dimasukkan dalam cache', async () => {
+  const res = await fetch(`${BASE}/manifest.webmanifest`);
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('content-type'), /application\/manifest\+json/);
+  const m = await res.json();
+  assert.equal(m.display, 'standalone');
+  assert.equal(m.lang, 'ms');
+  assert.ok(m.name && m.short_name.length <= 12);
+  assert.ok(new URL(m.start_url, BASE).pathname.startsWith(m.scope === '/' ? '/' : m.scope), 'start_url dalam scope');
+  assert.match(m.theme_color, /^#[0-9A-Fa-f]{6}$/);
+  const purposes = new Set(m.icons.map((i) => i.purpose));
+  assert.ok(purposes.has('any') && purposes.has('maskable'));
+  for (const icon of m.icons) {
+    const r = await fetch(`${BASE}${icon.src}`);
+    assert.equal(r.status, 200, icon.src);
+    const buf = Buffer.from(await r.arrayBuffer());
+    assert.equal(buf.readUInt32BE(16), Number(icon.sizes.split('x')[0]), `lebar PNG ${icon.src}`);
+    assert.equal(buf.readUInt32BE(20), Number(icon.sizes.split('x')[1]), `tinggi PNG ${icon.src}`);
+  }
+  for (const s of m.screenshots) assert.equal((await fetch(`${BASE}${s.src}`)).status, 200, s.src);
+  assert.ok(m.screenshots.some((s) => s.form_factor === 'wide') && m.screenshots.some((s) => s.form_factor === 'narrow'));
+  for (const sc of m.shortcuts) assert.equal(new URL(sc.url, BASE).pathname, '/app/');
+  assert.equal((await fetch(`${BASE}/assets/icons/apple-touch-icon.png`)).status, 200);
+
+  const sw = await fetch(`${BASE}/sw.js`);
+  assert.equal(sw.status, 200);
+  assert.match(sw.headers.get('cache-control') || '', /no-cache/);
+  assert.match(sw.headers.get('content-type') || '', /javascript/);
+
+  // Halaman yang menggunakan PWA menyambung manifest dan ikon sentuh Apple.
+  for (const path of ['/', '/app/', '/privasi', '/terma']) {
+    const html = await (await fetch(`${BASE}${path}`)).text();
+    assert.ok(html.includes('rel="manifest" href="/manifest.webmanifest"'), `${path} tiada manifest`);
+    assert.ok(html.includes('rel="apple-touch-icon"'), `${path} tiada apple-touch-icon`);
+  }
+});
+
+test('PWA offline: service worker aktif, halaman yang pernah dibuka dipaparkan tanpa internet, halaman baharu dapat offline.html, /api dan kedai tak di-cache', async () => {
+  const { context, page } = await newPage({ sw: true });
+  await page.goto(`${BASE}/privasi`);
+  // Tunggu SW mengawal halaman (clients.claim) dan muat semula supaya semua aset melaluinya dan masuk cache.
+  await page.waitForFunction(() => navigator.serviceWorker.controller, null, { timeout: 20000 });
+  await page.reload();
+  await page.goto(`${BASE}/`);
+  await page.goto(`${BASE}/terma`);
+  await page.goto(`${BASE}/app/`);
+  await page.getByRole('heading', { name: 'Log masuk peniaga' }).waitFor();
+
+  const cached = await page.evaluate(async () => {
+    const keys = await caches.keys();
+    const urls = [];
+    for (const k of keys) for (const r of await (await caches.open(k)).keys()) urls.push(new URL(r.url).pathname);
+    return { keys, urls };
+  });
+  assert.ok(cached.keys.some((k) => k.startsWith('kedai-')));
+  assert.ok(cached.urls.includes('/offline.html') && cached.urls.includes('/privasi') && cached.urls.includes('/app/'), cached.urls.join(','));
+  assert.ok(!cached.urls.some((u) => u.startsWith('/api/')), 'tiada /api dalam cache');
+  assert.ok(!cached.urls.some((u) => u.startsWith('/kedai-')), 'tiada halaman kedai dalam cache');
+
+  await context.setOffline(true);
+  await page.goto(`${BASE}/privasi`);
+  await page.getByRole('heading', { level: 1, name: 'Dasar Privasi' }).waitFor();
+  await page.goto(`${BASE}/app/`);
+  await page.locator('#app').waitFor();
+  await page.goto(`${BASE}/terma`);
+  await page.getByRole('heading', { level: 1, name: 'Terma Perkhidmatan' }).waitFor();
+  await page.goto(`${BASE}/`); // landing pernah dibuka
+  await page.getByRole('heading', { level: 1 }).waitFor();
+  await shot(page, '00-offline-cache');
+  await context.setOffline(false);
+  await context.close();
+
+  // Penyemak imbas baharu (cache kosong kecuali precache): halaman yang belum pernah dibuka offline -> offline.html
+  const fresh = await newPage({ sw: true });
+  await fresh.page.goto(`${BASE}/terma`);
+  await fresh.page.waitForFunction(() => navigator.serviceWorker.controller, null, { timeout: 20000 });
+  await fresh.context.setOffline(true);
+  await fresh.page.goto(`${BASE}/app/`).catch(() => {});
+  await fresh.page.getByRole('heading', { name: 'Tiada sambungan internet' }).waitFor();
+  assert.equal(await fresh.page.getByRole('link', { name: 'Cuba lagi' }).getAttribute('href'), '/app/');
+  await shot(fresh.page, '00-offline-html');
+  await fresh.context.setOffline(false);
+  await fresh.context.close();
+});
+
+test('PWA dashboard: kad "Pasang app" muncul hanya bila pelayar menawarkan pemasangan, dan memanggil prompt()', async () => {
+  const { context, page } = await newPage({ sid: TOKEN_B });
+  await page.goto(`${BASE}/app/#/akaun`);
+  await page.getByRole('heading', { name: 'Data anda' }).waitFor();
+  assert.equal(await page.getByRole('heading', { name: 'Pasang app' }).isVisible(), false, 'tiada tawaran: kad tersembunyi');
+  await page.evaluate(() => {
+    const e = new Event('beforeinstallprompt', { cancelable: true });
+    e.prompt = () => {
+      window.__prompted = (window.__prompted || 0) + 1;
+      return Promise.resolve();
+    };
+    e.userChoice = Promise.resolve({ outcome: 'accepted' });
+    window.dispatchEvent(e);
+  });
+  await page.getByRole('heading', { name: 'Pasang app' }).waitFor();
+  await page.locator('section', { hasText: 'Pasang app' }).getByRole('button', { name: 'Pasang app' }).click();
+  await page.waitForFunction(() => window.__prompted === 1);
+  await page.getByRole('heading', { name: 'Pasang app' }).waitFor({ state: 'hidden' });
+  await context.close();
+});
+
+test('PWA desktop: dashboard di 1280 px guna sidebar, tiada skrol mendatar; landing di desktop tanpa bar CTA melekat', async () => {
+  const { context, page } = await newPage({ width: 1280, height: 800, sid: TOKEN_B });
+  await page.goto(`${BASE}/app/`);
+  await page.locator('.bottom-nav').waitFor();
+  const nav = await page.locator('.bottom-nav').boundingBox();
+  assert.ok(nav.width < 300 && nav.x === 0, `sidebar ${nav.width}x${nav.height}`);
+  await noHorizontalScroll(page);
+  await page.goto(`${BASE}/`);
+  assert.equal(await page.locator('.cta-bar').isVisible(), false);
+  assert.equal(await page.locator('.site-nav').isVisible(), true);
+  assert.equal(await page.locator('.menu-toggle').isVisible(), false);
   await context.close();
 });
 

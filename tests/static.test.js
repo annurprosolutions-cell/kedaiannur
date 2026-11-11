@@ -31,6 +31,11 @@ test('setiap fail dan folder statik di akar public/ dikecualikan', () => {
       assert.ok(routes.exclude.includes('/'));
     } else {
       assert.ok(routes.exclude.includes(`/${name}`), `tambah "/${name}" ke exclude`);
+      // Pages menukar /x.html kepada /x (308): bentuk tanpa .html mesti dikecualikan juga, jika tidak ia jatuh ke Functions
+      // sebagai slug kedai dan memberi 404.
+      if (name.endsWith('.html') && !['404.html'].includes(name)) {
+        assert.ok(routes.exclude.includes(`/${name.slice(0, -5)}`), `tambah "/${name.slice(0, -5)}" ke exclude`);
+      }
     }
   }
 });

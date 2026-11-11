@@ -21,6 +21,10 @@
     "/privasi",
     "/privasi.html",
     "/terma",
-    "/terma.html"
+    "/terma.html",
+    "/sw.js",
+    "/manifest.webmanifest",
+    "/offline.html",
+    "/offline"
   ]
 }

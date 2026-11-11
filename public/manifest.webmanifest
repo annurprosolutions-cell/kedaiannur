@@ -1,0 +1,31 @@
+{
+  "id": "/app/",
+  "name": "Kedai AnnurPro",
+  "short_name": "Kedai",
+  "description": "Urus kedai online anda: produk, harga dan link kongsi. Order terus ke WhatsApp.",
+  "lang": "ms",
+  "dir": "ltr",
+  "start_url": "/app/?sumber=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#0A0F1F",
+  "theme_color": "#0F766E",
+  "categories": ["business", "shopping", "productivity"],
+  "icons": [
+    { "src": "/assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Produk", "short_name": "Produk", "url": "/app/#/produk", "icons": [{ "src": "/assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Tambah produk", "short_name": "Tambah", "url": "/app/#/produk/baru", "icons": [{ "src": "/assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Langganan", "short_name": "Langganan", "url": "/app/#/langganan", "icons": [{ "src": "/assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] }
+  ],
+  "screenshots": [
+    { "src": "/assets/img/landing/dashboard.webp", "sizes": "720x1480", "type": "image/webp", "form_factor": "narrow", "label": "Dashboard peniaga" },
+    { "src": "/assets/img/landing/produk.webp", "sizes": "720x1480", "type": "image/webp", "form_factor": "narrow", "label": "Urus produk" },
+    { "src": "/assets/img/landing/dashboard-desktop.webp", "sizes": "1280x800", "type": "image/webp", "form_factor": "wide", "label": "Dashboard di desktop" }
+  ]
+}
