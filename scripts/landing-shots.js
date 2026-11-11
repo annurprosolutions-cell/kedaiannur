@@ -212,7 +212,6 @@ UPDATE shops SET storage_bytes = (SELECT SUM(bytes) FROM products) + ${banner.le
     await page.goto(`${BASE}/kuih-mak-teh`);
     await page.locator('.shop-grid img').first().waitFor();
     await page.waitForFunction(() => [...document.images].every((i) => i.complete));
-    await save('kedai');
 
     // Troli dengan beberapa item, kemudian borang hantar order.
     for (const n of [0, 0, 1, 3]) await page.locator('.p-add').nth(n).click();

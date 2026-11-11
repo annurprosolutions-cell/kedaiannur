@@ -324,6 +324,11 @@ test('S-01 landing: hero, harga daripada /api/plans, contoh kedai tersembunyi, t
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.locator('.hero-shot img').evaluate((img) => img.decode());
   await noHorizontalScroll(page);
+  // Gutter sisi: teks dan butang hero tak boleh melekat di tepi skrin.
+  for (const sel of ['.hero h1', '.hero .lead', '.hero-cta .btn', '.hero-note']) {
+    const box = await page.locator(sel).first().boundingBox();
+    assert.ok(box.x >= 12 && box.x + box.width <= 360 - 12, `${sel} tiada gutter: x=${box.x} kanan=${box.x + box.width}`);
+  }
   await touchTargets(page, '.hero-cta .btn, .icon-toggle, .seg button, .faq-list summary, .cta-bar .btn');
   await shot(page, '00-landing');
   await context.close();

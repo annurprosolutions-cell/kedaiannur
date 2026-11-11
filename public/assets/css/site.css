@@ -107,7 +107,8 @@ html[data-theme="light"] .theme-moon { display: none; }
 @media (min-width: 840px) { .section h2 { font-size: 36px; } }
 
 /* ---------- hero ---------- */
-.hero { display: grid; gap: var(--s6); align-items: center; padding: var(--s6) 0 var(--s6); text-align: center; }
+/* padding-top/bottom sahaja: shorthand `padding` akan membuang gutter sisi daripada .wrap */
+.hero { display: grid; gap: var(--s6); align-items: center; padding-top: var(--s6); padding-bottom: var(--s6); text-align: center; }
 .hero h1 { font-size: 36px; line-height: 1.1; letter-spacing: -0.02em; margin: 0 0 var(--s4); }
 .hero .lead { font-size: 18px; color: var(--muted); margin: 0 auto var(--s5); max-width: 520px; }
 .badge-pill {
