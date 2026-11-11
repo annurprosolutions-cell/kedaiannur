@@ -19,7 +19,7 @@ export function openCropper(bitmap, kind, { title } = {}) {
 
   return new Promise((resolve) => {
     const canvas = h('canvas', { class: 'crop-canvas', 'aria-hidden': 'true' });
-    const frame = h('div', { class: 'crop-frame', tabindex: '0', role: 'img', 'aria-label': 'Kawasan gambar. Seret untuk alih, anak panah untuk alih, tambah atau tolak untuk zum.' }, canvas);
+    const frame = h('div', { class: kind === 'logo' ? 'crop-frame crop-round' : 'crop-frame', tabindex: '0', role: 'img', 'aria-label': 'Kawasan gambar. Seret untuk alih, anak panah untuk alih, tambah atau tolak untuk zum.' }, canvas);
     const zoomIn = h('input', { type: 'range', min: '1', max: String(MAX_ZOOM), step: '0.01', value: '1', class: 'crop-zoom', 'aria-label': 'Zum gambar' });
     const cancelBtn = h('button', { type: 'button', class: 'btn btn-secondary' }, 'Batal');
     const okBtn = h('button', { type: 'button', class: 'btn' }, 'Guna gambar');
@@ -30,8 +30,11 @@ export function openCropper(bitmap, kind, { title } = {}) {
       h(
         'div',
         { class: 'crop-sheet stack-sm' },
-        h('h2', { id: 'crop-title' }, title || (kind === 'banner' ? 'Potong banner' : 'Potong gambar produk')),
-        h('p', { class: 'caption' }, kind === 'banner' ? 'Banner dipaparkan dalam nisbah 2:1 di atas kedai.' : 'Gambar produk dipaparkan dalam bentuk segi empat di kedai.'),
+        h('h2', { id: 'crop-title' }, title || { banner: 'Potong banner', logo: 'Potong logo' }[kind] || 'Potong gambar produk'),
+        h('p', { class: 'caption' }, {
+          banner: 'Banner dipaparkan dalam nisbah 2:1 di atas kedai.',
+          logo: 'Logo dipaparkan dalam bulatan di atas kedai. Pastikan bahagian penting berada di tengah.',
+        }[kind] || 'Gambar produk dipaparkan dalam bentuk segi empat di kedai.'),
         frame,
         h('div', { class: 'crop-zoom-row' }, h('span', { 'aria-hidden': 'true' }, '−'), zoomIn, h('span', { 'aria-hidden': 'true' }, '+'), resetBtn),
         h('div', { class: 'crop-actions' }, cancelBtn, okBtn),

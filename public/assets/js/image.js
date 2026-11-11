@@ -6,6 +6,7 @@ export const SPECS = {
   banner: { maxBytes: 500 * 1024, width: 1600, height: 800 }, // dipotong ke nisbah 2:1
   product: { maxBytes: 400 * 1024, maxSide: 1000 },
   thumb: { maxBytes: 80 * 1024, maxSide: 400 },
+  logo: { maxBytes: 100 * 1024, maxSide: 512 },
 };
 
 const MAX_INPUT_BYTES = 30 * 1024 * 1024;
@@ -71,7 +72,7 @@ async function encode(canvas, quality) {
 }
 
 // Nisbah bingkai potongan setiap jenis (lebar / tinggi). Halaman kedai papar produk 1:1 dan banner 2:1.
-export const ASPECT = { banner: 2, product: 1, thumb: 1 };
+export const ASPECT = { banner: 2, product: 1, thumb: 1, logo: 1 };
 
 // Potongan lalai: kawasan terbesar di tengah dengan nisbah jenis itu (sama seperti object-fit: cover).
 export function centerCrop(kind, srcW, srcH) {

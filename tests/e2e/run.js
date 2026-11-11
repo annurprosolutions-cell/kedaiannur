@@ -8,7 +8,7 @@
 import { test, before, after, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, statSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, statSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -141,7 +141,8 @@ before(async () => {
     join(cfgDir, 'wrangler.toml'),
     'name = "kedai-e2e"\ncompatibility_date = "2025-09-01"\n[[d1_databases]]\nbinding = "DB"\ndatabase_name = "kedai-db"\ndatabase_id = "kedai-db-e2e"\n',
   );
-  const seed = `${readFileSync(join(ROOT, 'db/0001_init.sql'), 'utf8')}
+  const migrations = readdirSync(join(ROOT, 'db')).filter((f) => /^\d{4}_.*\.sql$/.test(f)).sort();
+  const seed = `${migrations.map((f) => readFileSync(join(ROOT, 'db', f), 'utf8')).join('\n')}
 INSERT INTO users (id, google_sub, email, name) VALUES
   ('u-a', 'sub-a', 'baru@ujian.test', '${XSS_NAME.replace(/'/g, "''")}'),
   ('u-b', 'sub-b', 'wakanda@ujian.test', 'Mak Wakanda'),
@@ -1518,6 +1519,44 @@ test('S-14 + webhook BCL: butang Bayar ke borang, e-mel untuk disalin, kembali ?
   await page.goto(`${BASE}/app/?bayar=gagal#/langganan`);
   await page.getByText('Bayaran tak berjaya atau dibatalkan').waitFor();
   await context.close();
+});
+
+
+// ================================================================ Logo kedai
+
+test('Logo: muat naik melalui cropper bulat; kedai papar logo; Pro guna logo sebagai favicon, Percuma kekal favicon lalai', async () => {
+  for (const [sid, slug, pro] of [[TOKEN_F, 'kedai-bayar', true], [TOKEN_E, null, false]]) { // kedai-bayar jadi Pro melalui webhook (Fasa 6)
+    const { context, page } = await newPage({ sid });
+    await page.goto(`${BASE}/app/#/tetapan`);
+    await page.getByRole('heading', { name: 'Logo' }).waitFor();
+    await page.locator('#s-logo-file').setInputFiles(bigJpeg);
+    const dialog = page.getByRole('dialog', { name: 'Potong logo' });
+    await dialog.waitFor({ timeout: 60000 });
+    assert.equal(await dialog.locator('.crop-frame.crop-round').count(), 1, 'panduan bulat untuk logo');
+    if (pro) await shot(page, '15-cropper-logo');
+    await dialog.getByRole('button', { name: 'Guna gambar' }).click();
+    await page.locator('#logo-msg', { hasText: 'Logo disimpan.' }).waitFor({ timeout: 60000 });
+    await page.getByRole('button', { name: 'Tukar logo' }).waitFor();
+    const me = (await apiGet('/api/me', sid)).json.shop;
+    assert.match(me.logoKey, /\/l_[0-9a-f-]{36}\.(webp|jpg)$/);
+    const key = me.logoKey;
+    const shopSlug = slug || me.slug;
+    if (pro) await shot(page, '16-tetapan-logo');
+
+    await page.goto(`${BASE}/${shopSlug}`);
+    const logo = page.locator('.shop-logo');
+    await logo.waitFor();
+    assert.equal(await logo.getAttribute('src'), `${MEDIA}/${key}`);
+    const icons = await page.evaluate(() => [...document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]')].map((l) => l.getAttribute('href')));
+    if (pro) {
+      assert.ok(icons.length >= 2 && icons.every((href) => href === `${MEDIA}/${key}`), `favicon Pro: ${icons}`);
+      await noHorizontalScroll(page);
+      await shot(page, '17-kedai-logo');
+    } else {
+      assert.deepEqual(icons, ['/favicon.svg'], 'Percuma: favicon lalai');
+    }
+    await context.close();
+  }
 });
 
 // ================================================================ Tema dan PWA

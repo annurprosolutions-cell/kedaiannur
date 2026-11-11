@@ -99,6 +99,8 @@ export function viewBilling(ctx) {
       ['Kategori', free.maxCategories, pro && pro.maxCategories],
       ['Banner', free.maxBanners, pro && `${pro.maxBanners} (berputar)`],
       ['Storage gambar', formatBytes(free.maxStorageBytes), pro && formatBytes(pro.maxStorageBytes)],
+      ['Logo kedai', 'Ya', pro && 'Ya'],
+      ['Logo sebagai ikon tab (favicon)', yesNo(free.hideBranding), pro && yesNo(pro.hideBranding)],
       ['Templat mesej sendiri', yesNo(free.customTemplate), pro && yesNo(pro.customTemplate)],
       ['Buang "Dikuasakan oleh"', yesNo(free.hideBranding), pro && yesNo(pro.hideBranding)],
     ];

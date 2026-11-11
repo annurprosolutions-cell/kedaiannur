@@ -1,4 +1,4 @@
-// POST /api/upload?kind=product|thumb|banner
+// POST /api/upload?kind=product|thumb|banner|logo
 // Badan = fail gambar mentah (image/webp atau image/jpeg) yang sudah dimampatkan di browser.
 // Kunci objek dijana server. Saiz storage dikira pada masa gambar dipautkan (produk atau banner), bukan di sini.
 

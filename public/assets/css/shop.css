@@ -21,6 +21,10 @@ body.sheet-open { overflow: hidden; }
 @media (min-width: 640px) { .shop-banner { border-radius: 0 0 var(--radius) var(--radius); } }
 .shop-title { padding-top: var(--s4); }
 .shop-title h1 { margin-bottom: var(--s2); overflow-wrap: anywhere; }
+.shop-name-row { display: flex; align-items: center; gap: var(--s3); margin-bottom: var(--s2); }
+.shop-name-row h1 { margin: 0; min-width: 0; }
+.shop-logo { flex: none; width: 64px; height: 64px; border-radius: 50%; object-fit: cover; background: var(--border); border: 2px solid var(--surface); box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12); }
+.shop-banner + .shop-title .shop-logo, .banner-carousel + .shop-title .shop-logo { margin-top: -36px; }
 .shop-desc { white-space: pre-line; overflow-wrap: anywhere; }
 
 .shop-main { display: flex; flex-direction: column; gap: var(--s3); }

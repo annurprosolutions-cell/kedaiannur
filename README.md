@@ -17,6 +17,7 @@ Stack: Cloudflare Pages (frontend statik tanpa build step) + Pages Functions (AP
 | 8 | Landing page (S-01) dengan tangkapan skrin sebenar, halaman `/privasi` dan `/terma`, eksport data JSON dan padam kedai (S-15), `/api/plans` awam, ukuran LCP | Kod siap, ujian lulus. Teks privasi dan terma ialah draf: semak sebelum launch |
 | 6 | Langganan BCL: borang (RM20/RM200, kuantiti), webhook dengan pengesahan API, kiraan bulan, bayaran tak padan diterapkan bila kedai dicipta, S-14 butang Bayar | Kod siap, ujian lulus. Perlu token BCL dan kunci webhook (lihat bawah) |
 | 8c | Cropper gambar produk dan banner, landing cerah lalai dengan animasi scroll | Kod siap, ujian lulus |
+| 8d | Logo kedai (semua pelan); Pro: logo jadi favicon dan ikon skrin utama kedai | Kod siap, ujian lulus. Perlu `db/0003_logo.sql` di D1 sebelum deploy |
 | 8b | Tema baharu landing (gelap midnight navy + aksen amber, mod cerah), PWA (manifest, service worker, ikon, offline, kad Pasang app) | Kod siap, ujian lulus |
 
 ## Struktur
@@ -253,6 +254,15 @@ Nota operasi:
 - E-mel salah taip dalam borang: bayaran jadi "tak padan" di panel admin (S-18); padankan dengan kedai yang betul.
 - Bayar sebelum daftar: bayaran disimpan "tak padan" dan diterapkan automatik bila kedai dengan e-mel itu dicipta.
 - `BCL_ACCEPT_TEST=1` hanya untuk "Send Test Webhook" BCL; padam selepas ujian.
+
+## Logo kedai
+
+- Tetapan, bahagian Logo: muat naik dengan cropper bulat (1:1, maksimum 512 px, 100 KB), tukar atau buang. Disimpan
+  `shops/<id>/l_<uuid>.webp`; saiz dikira dalam storage pelan. Endpoint `PUT /api/shop/logo { key | null }`.
+- Semua pelan: logo dipaparkan di kepala kedai, dan menjadi gambar pratonton link jika kedai tiada banner.
+- Pro (ciri yang sama kelas dengan buang branding, `plans.hide_branding`): logo juga menjadi favicon dan
+  apple-touch-icon halaman kedai (`snapshot.shop.fav`).
+- Migrasi: jalankan `db/0003_logo.sql` dalam D1 Console **sebelum** deploy kod ini. Ujian memuatkan semua `db/NNNN_*.sql` mengikut urutan.
 
 ## Gambar: cropper
 

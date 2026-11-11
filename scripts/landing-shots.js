@@ -6,7 +6,7 @@
 // Pilihan env: WRANGLER_BIN=<path ke wrangler.js>  SHOTS_TMP=<folder sementara>
 
 import { spawn, execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
@@ -154,7 +154,8 @@ async function main() {
     const banner = await drawImage(draw, { w: 1200, h: 600, emoji: '🥟', bg: ['#0f766e', '#14b8a6'], title: 'Tempahan Raya dibuka', sub: 'Pesan sebelum 20 hb' });
     put(bannerKey, banner);
 
-    const seed = `${readFileSync(join(ROOT, 'db/0001_init.sql'), 'utf8')}
+    const migrations = readdirSync(join(ROOT, 'db')).filter((f) => /^\d{4}_.*\.sql$/.test(f)).sort();
+    const seed = `${migrations.map((f) => readFileSync(join(ROOT, 'db', f), 'utf8')).join('\n')}
 INSERT INTO users (id, google_sub, email, name) VALUES ('u-d', 'sub-d', 'demo@contoh.test', 'Mak Teh'), ('u-z', 'sub-z', 'admin@contoh.test', 'Admin');
 INSERT INTO sessions (token_hash, user_id, expires_at) VALUES ('${sha(TOKEN)}', 'u-d', datetime('now', '+1 day')), ('${sha(ADMIN)}', 'u-z', datetime('now', '+1 day'));
 INSERT INTO shops (id, owner_user_id, slug, name, whatsapp, description, plan_code, plan_expires_at, storage_bytes) VALUES

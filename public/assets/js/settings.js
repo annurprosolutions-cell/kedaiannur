@@ -404,6 +404,87 @@ export function viewSettings(ctx) {
     });
     renderBanners();
 
+    // ------------------------------------------------ logo (semua pelan; Pro: juga favicon kedai)
+    let logoKey = shop.logoKey || null;
+    let logoBusy = false;
+    const logoMsg = h('p', { class: 'field-msg', id: 'logo-msg', 'aria-live': 'polite' });
+    const logoPreview = h('div', { class: 'logo-preview-wrap' });
+    const logoFile = h('input', { type: 'file', accept: 'image/*', class: 'sr-only', id: 's-logo-file', tabindex: '-1', 'aria-label': 'Fail gambar logo' });
+    const logoPick = h('button', { type: 'button', class: 'btn btn-secondary btn-block' }, icon('gambar'), h('span', {}, 'Muat naik logo'));
+    const logoRemove = h('button', { type: 'button', class: 'btn btn-secondary btn-block' }, icon('padam'), h('span', {}, 'Buang logo'));
+    const isPro = shop.plan.hideBranding;
+    const logoNote = h(
+      'p',
+      { class: 'caption' },
+      isPro
+        ? 'Dipaparkan di atas kedai dan dalam pratonton link WhatsApp. Pelan Pro: logo juga menjadi ikon tab dan ikon skrin utama kedai anda.'
+        : 'Dipaparkan di atas kedai dan dalam pratonton link WhatsApp. Pelan Pro: logo juga menjadi ikon tab dan ikon skrin utama kedai.',
+    );
+    const setLogoMsg = (text, kind = 'error') => {
+      logoMsg.textContent = text || '';
+      logoMsg.dataset.kind = text ? kind : '';
+    };
+    function renderLogo() {
+      const url = logoKey ? mediaUrl(cfg, logoKey) : '';
+      logoPreview.replaceChildren(
+        url ? h('img', { class: 'logo-preview', src: url, alt: 'Logo kedai' }) : h('span', { class: 'logo-preview', 'aria-hidden': 'true' }, icon('kedai')),
+      );
+      logoPick.lastChild.textContent = logoKey ? 'Tukar logo' : 'Muat naik logo';
+      logoRemove.hidden = !logoKey;
+      logoPick.disabled = logoBusy;
+      logoRemove.disabled = logoBusy;
+    }
+    async function saveLogo(key, okText) {
+      const res = await api('/api/shop/logo', { method: 'PUT', body: { key } });
+      logoKey = res.logoKey;
+      storageBytes = res.storageBytes;
+      shop = { ...shop, logoKey, storageBytes };
+      setLogoMsg(okText, 'ok');
+      renderBanners();
+    }
+    logoPick.addEventListener('click', () => logoFile.click());
+    logoRemove.addEventListener('click', async () => {
+      if (logoBusy) return;
+      logoBusy = true;
+      renderLogo();
+      try {
+        await saveLogo(null, 'Logo dibuang.');
+      } catch (err) {
+        if (err.status === 401) ctx.onError(err);
+        else setLogoMsg(err.message || 'Logo tak berjaya dibuang.');
+      } finally {
+        logoBusy = false;
+        renderLogo();
+      }
+    });
+    logoFile.addEventListener('change', async () => {
+      const file = logoFile.files && logoFile.files[0];
+      logoFile.value = '';
+      if (!file || logoBusy) return;
+      logoBusy = true;
+      renderLogo();
+      let bitmap = null;
+      try {
+        bitmap = await readImage(file);
+        const crop = await openCropper(bitmap, 'logo');
+        if (!crop) return;
+        setLogoMsg('Memampatkan dan memuat naik...', 'muted');
+        const out = await compressBitmap(bitmap, 'logo', crop);
+        releaseImage(bitmap);
+        bitmap = null;
+        const up = await upload('logo', out.blob);
+        await saveLogo(up.key, 'Logo disimpan.');
+      } catch (err) {
+        if (err.status === 401) ctx.onError(err);
+        else setLogoMsg(err instanceof ImageError || err.message ? err.message : 'Logo tak berjaya dimuat naik.');
+      } finally {
+        releaseImage(bitmap);
+        logoBusy = false;
+        renderLogo();
+      }
+    });
+    renderLogo();
+
     // ------------------------------------------------ susun atur
     return h(
       'div',
@@ -418,6 +499,14 @@ export function viewSettings(ctx) {
       ),
       templateSection,
       saveBtn,
+      h(
+        'section',
+        { class: 'card stack' },
+        h('h2', {}, 'Logo'),
+        h('div', { class: 'logo-row' }, logoPreview, h('div', { class: 'stack-sm' }, logoFile, logoPick, logoRemove)),
+        logoNote,
+        logoMsg,
+      ),
       h('section', { class: 'card stack' }, h('h2', {}, 'Banner'), bannerList, bannerNote, bannerStorage, fileIn, addBtn, upgrade, bannerMsg),
     );
   }

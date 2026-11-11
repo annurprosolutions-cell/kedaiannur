@@ -168,6 +168,22 @@ function start(page) {
 
   const filter = { q: '', cat: '' };
 
+  // ---------------- logo dan favicon
+  const logoUrl = imgUrl(shop.logo);
+  if (logoUrl && shop.fav) {
+    // Pro: logo menjadi ikon tab dan ikon skrin utama (server juga menulisnya dalam <head>; ini untuk fallback 404.html).
+    for (const rel of ['icon', 'apple-touch-icon']) {
+      let link = document.querySelector(`link[rel="${rel}"]`);
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = rel;
+        document.head.appendChild(link);
+      }
+      link.removeAttribute('type');
+      link.href = logoUrl;
+    }
+  }
+
   // ---------------- kepala kedai
   const header = h(
     'header',
@@ -176,7 +192,12 @@ function start(page) {
     h(
       'div',
       { class: 'shop-wrap shop-title' },
-      h('h1', {}, shop.name),
+      h(
+        'div',
+        { class: 'shop-name-row' },
+        logoUrl ? h('img', { class: 'shop-logo', src: logoUrl, alt: `Logo ${shop.name}`, width: 64, height: 64, decoding: 'async' }) : null,
+        h('h1', {}, shop.name),
+      ),
       shop.desc ? h('p', { class: 'shop-desc muted' }, shop.desc) : null,
       open ? null : h('p', { class: 'notice notice-warning', role: 'status' }, 'Kedai sedang tutup. Order tak dapat dihantar buat masa ini.'),
     ),

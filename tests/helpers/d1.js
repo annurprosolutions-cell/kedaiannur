@@ -2,10 +2,12 @@
 // prepare().bind().first()/all()/run(), batch() (satu transaksi) dan exec().
 
 import { DatabaseSync } from 'node:sqlite';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const SCHEMA = fileURLToPath(new URL('../../db/0001_init.sql', import.meta.url));
+// Semua migrasi db/NNNN_*.sql mengikut urutan, sama seperti D1 sebenar selepas setiap fail dijalankan.
+const DB_DIR = fileURLToPath(new URL('../../db/', import.meta.url));
+const MIGRATIONS = readdirSync(DB_DIR).filter((f) => /^\d{4}_.*\.sql$/.test(f)).sort();
 
 function plain(row) {
   return row ? { ...row } : null;
@@ -56,7 +58,7 @@ export class FakeD1 {
   constructor() {
     this.sqlite = new DatabaseSync(':memory:');
     this.sqlite.exec('PRAGMA foreign_keys = ON;'); // D1 menguatkuasakan foreign key
-    this.sqlite.exec(readFileSync(SCHEMA, 'utf8'));
+    for (const f of MIGRATIONS) this.sqlite.exec(readFileSync(DB_DIR + f, 'utf8'));
     this.queries = [];
   }
 

@@ -35,6 +35,7 @@ export async function onRequestGet({ env, data }) {
       pelan_tamat: shop.plan_expires_at,
       status: shop.status,
       dicipta: shop.created_at,
+      logo: url(shop.logo_key),
       banner: banners.map((b) => ({ kunci: b.image_key, url: url(b.image_key), saiz: b.bytes })),
       kategori: categories.map((c) => ({ id: c.id, nama: c.name, susunan: c.sort_order })),
       produk: products.map((p) => ({
