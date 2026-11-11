@@ -69,3 +69,26 @@ test('HTML statik tiada skrip inline (CSP akan sekat)', () => {
     assert.ok(!/\son[a-z]+=/i.test(html), `${f} ada atribut on*`);
   }
 });
+
+test('aset CSS/JS dalam HTML membawa ?v= yang sama (cache busting) dan _headers set no-cache untuk CSS/JS', () => {
+  const versions = new Set();
+  const walk = (dir) => {
+    for (const n of readdirSync(dir)) {
+      const p = join(dir, n);
+      if (statSync(p).isDirectory()) walk(p);
+      else if (n.endsWith('.html')) {
+        const html = readFileSync(p, 'utf8');
+        for (const m of html.matchAll(/(?:href|src)="(\/assets\/(?:css|js)\/[^"]+)"/g)) {
+          const v = /\?v=([\w.-]+)$/.exec(m[1]);
+          assert.ok(v, `${n}: ${m[1]} tiada ?v=`);
+          versions.add(v[1]);
+        }
+      }
+    }
+  };
+  walk(PUBLIC);
+  assert.equal(versions.size, 1, `versi berbeza: ${[...versions].join(', ')}`);
+  const headers = readFileSync(join(PUBLIC, '_headers'), 'utf8');
+  assert.match(headers, /\/assets\/css\/\*\n  Cache-Control: no-cache/);
+  assert.match(headers, /\/assets\/js\/\*\n  Cache-Control: no-cache/);
+});

@@ -8,7 +8,7 @@
 //    selepas deploy. Cache hanya dipakai bila rangkaian gagal.
 //  - Tiada data peribadi dalam cache: HTML dan aset statik sahaja. Data peniaga hanya melalui /api/* yang tak di-cache.
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE = `kedai-${VERSION}`;
 const PRECACHE = [
   '/offline.html',
@@ -76,7 +76,8 @@ self.addEventListener('fetch', (event) => {
         }
         return res;
       } catch (err) {
-        const cached = await caches.match(request, { ignoreSearch: request.mode === 'navigate' });
+        // ignoreSearch: HTML memautkan aset dengan ?v=<versi>, manakala precache menyimpan URL tanpa query.
+        const cached = await caches.match(request, { ignoreSearch: true });
         if (cached) return cached;
         if (request.mode === 'navigate') {
           const fallback = await caches.match('/offline.html');

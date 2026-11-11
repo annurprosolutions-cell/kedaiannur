@@ -15,6 +15,27 @@
   Cache-Control: no-cache
   X-Robots-Tag: noindex
 
+# Halaman HTML awam: sentiasa semak versi terbaru supaya HTML dan CSS/JS tak bercampur antara deploy.
+/
+  Cache-Control: no-cache
+
+/privasi
+  Cache-Control: no-cache
+
+/terma
+  Cache-Control: no-cache
+
+/offline
+  Cache-Control: no-cache
+
+# CSS dan JS: tiada hash dalam nama fail, jadi pelayar mesti sentiasa semak semula (304 jika tak berubah).
+# HTML juga memautkannya dengan ?v=<versi>; naikkan versi itu bila CSS/JS berubah (tests/static.test.js menyemak).
+/assets/css/*
+  Cache-Control: no-cache
+
+/assets/js/*
+  Cache-Control: no-cache
+
 /sw.js
   Cache-Control: no-cache
   Service-Worker-Allowed: /
