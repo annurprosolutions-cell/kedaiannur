@@ -16,7 +16,8 @@ export async function onRequestPatch({ request, env, data, params }) {
 
   const shop = await getShopForAdmin(db, parsed.value.shopId);
   if (!shop) return fail(404, 'kedai-tiada', 'Kedai tak dijumpai.');
-  const months = parsed.value.months ?? monthsFor(payment.period, payment.quantity);
+  // Webhook menyimpan bulan sebenar daripada item (months_added); bayaran lama guna tempoh x kuantiti.
+  const months = parsed.value.months ?? (payment.months_added > 0 ? payment.months_added : monthsFor(payment.period, payment.quantity));
   if (!Number.isInteger(months) || months < 1 || months > 120) {
     return fail(400, 'bulan-tak-sah', 'Bilangan bulan tak dapat ditentukan daripada bayaran ini. Nyatakan bilangan bulan.');
   }

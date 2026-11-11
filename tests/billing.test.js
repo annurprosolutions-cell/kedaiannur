@@ -22,7 +22,7 @@ test('GET /api/billing: pelan dengan harga, status, sejarah bayaran kedai sendir
 
   const res = await billing();
   assert.equal(res.status, 200);
-  assert.deepEqual(res.json.plans.map((p) => [p.code, p.priceMonthSen, p.priceYearSen]), [['free', 0, 0], ['pro', 2900, 29000]]);
+  assert.deepEqual(res.json.plans.map((p) => [p.code, p.priceMonthSen, p.priceYearSen]), [['free', 0, 0], ['pro', 2000, 20000]]);
   assert.equal(res.json.planCode, 'pro');
   assert.equal(res.json.effectivePlan.code, 'pro');
   assert.equal(res.json.status.state, 'active');

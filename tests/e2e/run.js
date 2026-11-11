@@ -12,6 +12,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, statSync, 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
+import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
@@ -38,6 +39,11 @@ const TOKEN_P = token('P'); // pengguna dengan kedai untuk ujian produk dan kate
 const TOKEN_R = token('R'); // pengguna dengan kedai Pro yang tamat dalam 10 hari (Fasa 5)
 const TOKEN_M = token('M'); // superadmin (Fasa 7); e-mel dalam SUPERADMIN_EMAILS
 const TOKEN_X = token('X'); // pengguna dengan kedai yang akan dipadam (Fasa 8)
+const TOKEN_F = token('F'); // pengguna dengan kedai Percuma yang membayar melalui BCL (Fasa 6)
+const BCL_KEY = 'e2e'.repeat(16);
+const BCL_PORT = PORT + 50;
+const BCL_FORM_URL = 'https://annurprosolutions1.bcl.my/form/kedai-annurpro-pro';
+const bclTx = {}; // transaksi yang dipulangkan oleh API BCL palsu
 const PADAM_IMG = 'shops/s-x/11111111-2222-4333-8444-555555555555.webp';
 const XSS_NAME = '<img src=x onerror="window.__xss=1">';
 const PNG_1X1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
@@ -47,6 +53,7 @@ let state;
 let cfgDir;
 let server;
 let browser;
+let bclServer;
 let bigJpeg; // laluan fail JPEG >= 5 MB
 const consoleProblems = [];
 const openPages = [];
@@ -145,7 +152,8 @@ INSERT INTO users (id, google_sub, email, name) VALUES
   ('u-r', 'sub-r', 'pro@ujian.test', 'Puan Pro'),
   ('u-m', 'sub-m', 'admin@ujian.test', 'Bos Admin'),
   ('u-x', 'sub-x', 'padam@ujian.test', 'Cik Padam'),
-  ('u-l', 'sub-l', 'laju@ujian.test', 'Encik Laju');
+  ('u-l', 'sub-l', 'laju@ujian.test', 'Encik Laju'),
+  ('u-f', 'sub-f', 'bayar@ujian.test', 'Puan Bayar');
 INSERT INTO sessions (token_hash, user_id, expires_at) VALUES
   ('${sha(TOKEN_A)}', 'u-a', datetime('now', '+1 day')),
   ('${sha(TOKEN_B)}', 'u-b', datetime('now', '+1 day')),
@@ -154,7 +162,8 @@ INSERT INTO sessions (token_hash, user_id, expires_at) VALUES
   ('${sha(TOKEN_P)}', 'u-p', datetime('now', '+1 day')),
   ('${sha(TOKEN_R)}', 'u-r', datetime('now', '+1 day')),
   ('${sha(TOKEN_M)}', 'u-m', datetime('now', '+1 day')),
-  ('${sha(TOKEN_X)}', 'u-x', datetime('now', '+1 day'));
+  ('${sha(TOKEN_X)}', 'u-x', datetime('now', '+1 day')),
+  ('${sha(TOKEN_F)}', 'u-f', datetime('now', '+1 day'));
 INSERT INTO payments (id, order_no, payer_email, amount_sen, period, quantity, status) VALUES
   ('pay-u', 'BCL-UJI-1', 'tersalah@ujian.test', 5800, 'monthly', 2, 'unmatched');
 INSERT INTO shops (id, owner_user_id, slug, name, whatsapp, description) VALUES
@@ -166,7 +175,8 @@ INSERT INTO shops (id, owner_user_id, slug, name, whatsapp, description, plan_co
   ('s-r', 'u-r', 'kedai-pro', 'Kedai Pro', '60198765432', '', 'pro', date('now', '+10 days'));
 INSERT INTO shops (id, owner_user_id, slug, name, whatsapp, description) VALUES
   ('s-x', 'u-x', 'kedai-padam', 'Kedai Padam', '60123456789', 'Akan dipadam'),
-  ('s-l', 'u-l', 'kedai-laju', 'Kedai Laju', '60123456789', 'Kedai untuk ukuran LCP');
+  ('s-l', 'u-l', 'kedai-laju', 'Kedai Laju', '60123456789', 'Kedai untuk ukuran LCP'),
+  ('s-f', 'u-f', 'kedai-bayar', 'Kedai Bayar', '60123456789', '');
 INSERT INTO categories (id, shop_id, name) VALUES ('c-x', 's-x', 'Kuih');
 INSERT INTO products (id, shop_id, category_id, name, price_sen, image_key, thumb_key, bytes) VALUES
   ('p-x', 's-x', 'c-x', 'Karipap Padam', 500, '${PADAM_IMG}', NULL, 10);
@@ -182,6 +192,15 @@ INSERT INTO products (id, shop_id, name, price_sen, image_key, thumb_key, bytes,
     wrangler(['r2', 'object', 'put', `kedai-media/${key}`, '--local', '--persist-to', state, '--file', join(tmp, 'img.webp'), '--content-type', 'image/webp'], { cwd: cfgDir });
   }
 
+  // API BCL palsu (GET /v1/transactions/:order) supaya aliran webhook diuji hujung ke hujung tanpa BCL sebenar.
+  bclServer = createServer((req, res) => {
+    const order = decodeURIComponent((req.url.split('/transactions/')[1] || '').split('?')[0]);
+    const t = bclTx[order];
+    const ok = t && req.headers.authorization === 'Bearer bcl_e2e';
+    res.writeHead(ok ? 200 : 404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(ok ? { success: true, data: { record_id: order, main_data: { order_number: order, ...t.main }, custom_fields_data: t.custom } } : { success: false }));
+  }).listen(BCL_PORT, '127.0.0.1');
+
   const [cmd, base] = wranglerCmd;
   server = spawn(
     cmd,
@@ -193,6 +212,11 @@ INSERT INTO products (id, shop_id, name, price_sen, image_key, thumb_key, bytes,
       '--binding', 'SESSION_DAYS=30',
       '--binding', `MEDIA_BASE_URL=${MEDIA}`,
       '--binding', 'SUPPORT_EMAIL=bantuan@ujian.test',
+      '--binding', `BCL_WEBHOOK_KEY=${BCL_KEY}`,
+      '--binding', 'BCL_API_TOKEN=bcl_e2e',
+      '--binding', `BCL_API_URL=http://127.0.0.1:${BCL_PORT}/v1`,
+      '--binding', 'BCL_FORM_ID=21437',
+      '--binding', `BCL_FORM_URL=${BCL_FORM_URL}`,
     ],
     { cwd: ROOT, env: { ...process.env, WRANGLER_SEND_METRICS: 'false' }, stdio: 'ignore', detached: true },
   );
@@ -203,6 +227,7 @@ INSERT INTO products (id, shop_id, name, price_sen, image_key, thumb_key, bytes,
 
 after(async () => {
   if (browser) await browser.close();
+  if (bclServer) bclServer.close();
   if (server) {
     try {
       process.kill(-server.pid, 'SIGTERM');
@@ -295,6 +320,20 @@ async function touchTargets(page, selector, min = 44) {
   }
 }
 
+// Selepas pilih fail gambar, cropper dibuka: terima potongan lalai (tengah).
+async function acceptCrop(page) {
+  const dialog = page.getByRole('dialog', { name: /Potong/ });
+  await dialog.waitFor({ timeout: 60000 });
+  await dialog.getByRole('button', { name: 'Guna gambar' }).click();
+  await dialog.waitFor({ state: 'detached' });
+}
+
+// Paparkan semua bahagian beranimasi (scroll-reveal) sebelum tangkapan skrin halaman penuh.
+async function revealAll(page) {
+  await page.evaluate(() => document.querySelectorAll('[data-reveal]').forEach((el) => el.classList.add('in')));
+  await page.waitForTimeout(900);
+}
+
 async function shot(page, name) {
   if (SHOTS) await page.screenshot({ path: join(SHOTS, `${name}.png`), fullPage: true });
 }
@@ -330,6 +369,7 @@ test('S-01 landing: hero, harga daripada /api/plans, contoh kedai tersembunyi, t
     assert.ok(box.x >= 12 && box.x + box.width <= 360 - 12, `${sel} tiada gutter: x=${box.x} kanan=${box.x + box.width}`);
   }
   await touchTargets(page, '.hero-cta .btn, .icon-toggle, .seg button, .faq-list summary, .cta-bar .btn');
+  await revealAll(page);
   await shot(page, '00-landing');
   await context.close();
 
@@ -337,6 +377,7 @@ test('S-01 landing: hero, harga daripada /api/plans, contoh kedai tersembunyi, t
   await desk.page.goto(`${BASE}/`);
   await desk.page.locator('.hero-shot img').evaluate((img) => img.decode());
   await noHorizontalScroll(desk.page);
+  await revealAll(desk.page);
   await shot(desk.page, '00-landing-desktop');
   await desk.context.close();
 });
@@ -476,7 +517,9 @@ test('F-03: gambar ~5 MB dimampatkan di browser ke bawah had saiz (banner, produ
   assert.ok(res.out.banner.width <= 1600);
   assert.ok(Math.max(res.out.product.width, res.out.product.height) <= 1000);
   assert.ok(Math.max(res.out.thumb.width, res.out.thumb.height) <= 400);
-  assert.ok(Math.abs(res.out.product.width / res.out.product.height - 4 / 3) < 0.01, 'produk kekal nisbah asal 4:3 (tak dipotong)');
+  // Sejak cropper: produk sentiasa segi empat (kedai papar 1:1); tanpa pilihan pengguna, potongan di tengah.
+  assert.equal(res.out.product.width, res.out.product.height, 'produk dipotong segi empat');
+  assert.equal(res.out.thumb.width, res.out.thumb.height, 'thumbnail segi empat');
   assert.equal(res.err, 'bukan-gambar', 'fail bukan gambar ditolak awal');
   await context.close();
 });
@@ -566,6 +609,7 @@ test('S-08 wizard: 3 langkah dengan semakan slug, normalisasi WhatsApp dan banne
   assert.equal(await page.getByRole('radio', { name: 'Teal' }).getAttribute('aria-checked'), 'false');
   await touchTargets(page, '.swatch');
   await page.locator('#f-banner').setInputFiles(bigJpeg);
+  await acceptCrop(page);
   await page.locator('#banner-msg', { hasText: 'Siap dimampatkan' }).waitFor({ timeout: 60000 });
   await page.locator('.banner-preview img').waitFor();
   const kb = Number(/\((\d+) KB\)/.exec(await page.locator('#banner-msg').textContent())[1]);
@@ -658,6 +702,7 @@ test('S-13: tetapan (nama, slug, warna, suis) dan pengurusan banner dengan had p
   const addBtn = page.getByRole('button', { name: 'Tambah banner' });
   assert.equal(await addBtn.isDisabled(), false);
   await page.locator('#s-banner-file').setInputFiles(bigJpeg);
+  await acceptCrop(page);
   await page.locator('.banner-item').waitFor({ timeout: 60000 });
   await page.locator('#banner-msg', { hasText: 'Banner ditambah.' }).waitFor();
   assert.equal(await addBtn.isDisabled(), true, 'had 1 banner pelan Percuma');
@@ -756,6 +801,7 @@ test('S-10/S-11 produk: tambah dengan gambar ~5 MB, tanpa harga, habis stok, sus
   await page.getByRole('heading', { level: 1, name: 'Tambah produk' }).waitFor();
 
   await page.locator('#p-image').setInputFiles(bigJpeg);
+  await acceptCrop(page);
   await page.locator('#img-msg', { hasText: 'Siap dimampatkan' }).waitFor({ timeout: 60000 });
   await page.getByLabel('Nama produk').fill('Teh Tarik');
   const price = page.getByLabel('Harga (RM)');
@@ -1089,7 +1135,7 @@ test('IPD 5.3 notis: Pro tamat dalam 10 hari dipaparkan di dashboard dan Langgan
   await page.getByRole('link', { name: 'Langganan' }).first().click();
   await page.getByRole('heading', { level: 2, name: 'Pelan Pro' }).waitFor();
   await page.getByText(/Aktif sehingga \d{2}\/\d{2}\/\d{4}/).waitFor();
-  await page.getByRole('cell', { name: 'RM29.00 sebulan atau RM290.00 setahun' }).waitFor();
+  await page.getByRole('cell', { name: 'RM20.00 sebulan atau RM200.00 setahun' }).waitFor();
   await page.getByText('Belum ada bayaran.').waitFor();
   await noHorizontalScroll(page);
   await shot(page, '51-langganan');
@@ -1422,6 +1468,58 @@ test('IPD LCP halaman kedai: Slow 4G (1.6 Mbps, RTT 150 ms) dan CPU 4x, banner W
 });
 
 
+
+// ================================================================ Fasa 6
+
+test('S-14 + webhook BCL: butang Bayar ke borang, e-mel untuk disalin, kembali ?bayar=berjaya dan Pro aktif sendiri; webhook berganda tak tambah masa', async () => {
+  const { context, page } = await newPage({ sid: TOKEN_F });
+  await page.goto(`${BASE}/app/#/langganan`);
+  await page.getByRole('heading', { name: 'Naik taraf ke Pro' }).waitFor();
+  const pay = page.getByRole('link', { name: 'Bayar melalui BCL' });
+  assert.equal(await pay.getAttribute('href'), BCL_FORM_URL);
+  assert.equal(await pay.getAttribute('target'), '_blank');
+  assert.equal(await page.locator('#pay-email').textContent(), 'bayar@ujian.test');
+  await page.getByText('RM20.00 sebulan atau RM200.00 setahun', { exact: false }).first().waitFor();
+  await touchTargets(page, '.pay-card .btn');
+  await noHorizontalScroll(page);
+  await shot(page, '52-langganan-bayar');
+
+  // Pembeli kembali dari BCL sebelum webhook sampai: halaman menunggu dan menyemak sendiri.
+  await page.goto(`${BASE}/app/?bayar=berjaya#/langganan`);
+  await page.getByText('Bayaran sedang disahkan dengan BCL').waitFor();
+  assert.equal(new URL(page.url()).search, '', '?bayar dibuang daripada URL');
+
+  const order = 'E2E-ORD-1';
+  bclTx[order] = {
+    main: { status: 3, is_paid: 1, amount: '201.00', subtotal_amount: '200.00', items: [{ name: 'KEDAI PRO TAHUNAN', quantity: 1 }], payer_email: 'suami@lain.test', transaction_type: 'live' },
+    custom: { 'E-mel akaun Google untuk log masuk': 'Bayar@Ujian.test' },
+  };
+  const body = { event: 'payment-success', data: { formable_type: 'payment_form', formable_id: 21437, record_type: 'Transaction', record_id: order,
+    main_data: { order_number: order, amount: '201.00', subtotal_amount: '200.00', transaction_type: 'live', status: 3 }, custom_fields_data: bclTx[order].custom } };
+  const send = (key = BCL_KEY) => fetch(`${BASE}/api/webhooks/bcl/${key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  assert.equal((await send('salah')).status, 404);
+  const r = await send();
+  assert.equal(r.status, 200);
+
+  await page.getByText(/Terima kasih\. Pro aktif sehingga \d{2}\/\d{2}\/\d{4}\./).waitFor({ timeout: 20000 });
+  await page.locator('.pay-list').getByText('Tahunan x1').waitFor();
+  const me = (await apiGet('/api/me', TOKEN_F)).json.shop;
+  assert.equal(me.plan.code, 'pro');
+  const expires = me.planStatus.expiresAt;
+  await shot(page, '53-langganan-aktif');
+
+  // Resend dari BCL: tiada tambahan masa.
+  assert.equal((await send()).status, 200);
+  await new Promise((res) => setTimeout(res, 800));
+  assert.equal((await apiGet('/api/me', TOKEN_F)).json.shop.planStatus.expiresAt, expires);
+  assert.equal((await apiGet('/api/billing', TOKEN_F)).json.payments.length, 1);
+
+  // Kembali dengan ?bayar=gagal: notis gagal, tiada perubahan.
+  await page.goto(`${BASE}/app/?bayar=gagal#/langganan`);
+  await page.getByText('Bayaran tak berjaya atau dibatalkan').waitFor();
+  await context.close();
+});
+
 // ================================================================ Tema dan PWA
 
 // Nisbah kontras WCAG antara warna teks dan latar sebenar (naik ke ibu bapa sehingga jumpa latar legap).
@@ -1446,33 +1544,105 @@ async function contrastOf(page, selector) {
   }, selector);
 }
 
-test('Tema landing: gelap lalai, tukar ke cerah dan kekal selepas muat semula, kontras teks >= 4.5:1 dalam kedua-dua tema', async () => {
+test('Tema landing: cerah lalai (tak ikut sistem), tukar ke gelap dan kekal selepas muat semula, kontras teks >= 4.5:1 dalam kedua-dua tema', async () => {
   const { context, page } = await newPage();
+  await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto(`${BASE}/`);
-  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'dark');
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'light', 'sistem gelap pun tetap cerah');
+  await revealAll(page);
   const checks = ['.hero .lead', '.hero-cta .btn', '.eyebrow', '.card p', '.faq-list summary', '.accent', '.site-footer', '.seg button[aria-pressed="false"]'];
-  for (const sel of checks) {
-    const ratio = await contrastOf(page, sel);
-    assert.ok(ratio >= 4.5, `gelap ${sel}: ${ratio.toFixed(2)}`);
-  }
-  await page.getByRole('button', { name: 'Tukar tema cerah atau gelap' }).click();
-  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'light');
   for (const sel of checks) {
     const ratio = await contrastOf(page, sel);
     assert.ok(ratio >= 4.5, `cerah ${sel}: ${ratio.toFixed(2)}`);
   }
   await shot(page, '00-landing-cerah');
+  await page.getByRole('button', { name: 'Tukar tema cerah atau gelap' }).click();
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'dark');
+  for (const sel of checks) {
+    const ratio = await contrastOf(page, sel);
+    assert.ok(ratio >= 4.5, `gelap ${sel}: ${ratio.toFixed(2)}`);
+  }
+  await shot(page, '00-landing-gelap');
   await page.reload();
-  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'light', 'pilihan tema diingat');
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'dark', 'pilihan tema diingat');
   await page.getByRole('button', { name: 'Tukar tema cerah atau gelap' }).click();
   await context.close();
+});
 
-  // Tanpa pilihan tersimpan, kekal gelap walaupun sistem cerah (rupa utama); cerah hanya jika dipilih.
-  const lightOs = await newPage();
-  await lightOs.page.emulateMedia({ colorScheme: 'light' });
-  await lightOs.page.goto(`${BASE}/privasi`);
-  assert.equal(await lightOs.page.evaluate(() => document.documentElement.dataset.theme), 'dark');
-  await lightOs.context.close();
+test('Landing: animasi scroll (bahagian muncul bila masuk skrin), dimatikan untuk prefers-reduced-motion', async () => {
+  const { context, page } = await newPage();
+  await page.goto(`${BASE}/`);
+  assert.equal(await page.evaluate(() => document.documentElement.classList.contains('motion')), true);
+  const faq = page.locator('.faq-list details').first();
+  const opacity = () => faq.evaluate((el) => Number(getComputedStyle(el).opacity));
+  assert.equal(await opacity(), 0, 'bawah skrin: belum muncul');
+  await faq.scrollIntoViewIfNeeded();
+  await page.waitForFunction(() => document.querySelector('.faq-list details').classList.contains('in'));
+  await page.waitForTimeout(900);
+  assert.equal(await opacity(), 1);
+  const py = await page.locator('.device-wrap').evaluate((el) => el.style.getPropertyValue('--py'));
+  assert.match(py, /^-\d+px$/, `parallax hero bergerak: ${py}`);
+  await context.close();
+
+  const calm = await newPage();
+  await calm.page.emulateMedia({ reducedMotion: 'reduce' });
+  await calm.page.goto(`${BASE}/`);
+  assert.equal(await calm.page.evaluate(() => document.documentElement.classList.contains('motion')), false);
+  assert.equal(await calm.page.locator('.faq-list details').first().evaluate((el) => getComputedStyle(el).opacity), '1');
+  await calm.context.close();
+});
+
+test('Cropper: gambar potret dalam bingkai segi empat; seret, zum dan Batal; hasil potongan mengikut pilihan', async () => {
+  const { context, page } = await newPage({ sid: TOKEN_B });
+  await page.goto(`${BASE}/app/`);
+  await page.locator('.bottom-nav').waitFor();
+  const result = await page.evaluate(async () => {
+    const { openCropper } = await import('/assets/js/cropper.js');
+    // Gambar potret 400 x 800: separuh atas merah, separuh bawah biru.
+    const c = document.createElement('canvas');
+    c.width = 400;
+    c.height = 800;
+    const x = c.getContext('2d');
+    x.fillStyle = '#f00';
+    x.fillRect(0, 0, 400, 400);
+    x.fillStyle = '#00f';
+    x.fillRect(0, 400, 400, 400);
+    const bmp = await createImageBitmap(c);
+    window.__crop = openCropper(bmp, 'product');
+    return { w: bmp.width, h: bmp.height };
+  });
+  assert.deepEqual(result, { w: 400, h: 800 });
+  const dialog = page.getByRole('dialog', { name: 'Potong gambar produk' });
+  await dialog.waitFor();
+  const frame = dialog.locator('.crop-frame');
+  const box = await frame.boundingBox();
+  assert.ok(Math.abs(box.width - box.height) < 2, `bingkai segi empat ${box.width}x${box.height}`);
+  await touchTargets(page, '.crop-actions .btn');
+  await noHorizontalScroll(page);
+  await shot(page, '14-cropper');
+
+  // Seret ke bawah sejauh mungkin: bahagian atas (merah) dipilih.
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height * 3, { steps: 8 });
+  await page.mouse.up();
+  await dialog.getByLabel('Zum gambar').fill('2');
+  await dialog.getByRole('button', { name: 'Guna gambar' }).click();
+  const crop = await page.evaluate(() => window.__crop);
+  assert.ok(Math.abs(crop.sw - crop.sh) < 1, 'potongan segi empat');
+  assert.ok(Math.abs(crop.sw - 200) < 2, `zum 2x: lebar sumber 200, dapat ${crop.sw}`);
+  assert.ok(crop.sy < 150, `potongan di bahagian atas gambar (sy=${crop.sy})`);
+
+  // Batal (Escape) memulangkan null.
+  await page.evaluate(async () => {
+    const { openCropper } = await import('/assets/js/cropper.js');
+    const bmp = await createImageBitmap(Object.assign(document.createElement('canvas'), { width: 300, height: 100 }));
+    window.__crop2 = openCropper(bmp, 'banner');
+  });
+  await page.getByRole('dialog', { name: 'Potong banner' }).waitFor();
+  await page.keyboard.press('Escape');
+  assert.equal(await page.evaluate(() => window.__crop2), null);
+  await context.close();
 });
 
 test('Landing: menu phone, harga bulanan/tahunan dengan jimat dikira daripada /api/plans, FAQ boleh dibuka', async () => {

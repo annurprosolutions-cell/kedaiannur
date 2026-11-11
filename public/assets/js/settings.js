@@ -6,7 +6,8 @@ import { api, upload } from './api.js';
 import { getConfig, mediaUrl } from './config.js';
 import { h, icon, toast } from './ui.js';
 import { field, textArea, textInput, switchRow, swatches, formatBytes } from './forms.js';
-import { compressImage, ImageError } from './image.js';
+import { compressBitmap, readImage, releaseImage, ImageError } from './image.js';
+import { openCropper } from './cropper.js';
 import {
   LIMITS, MSG, TEMPLATE_PLACEHOLDERS, cleanText, formatWhatsapp, isReservedLocally, normalizeSlug, normalizeWhatsapp,
   slugFormatIssue, validateTemplate,
@@ -376,9 +377,19 @@ export function viewSettings(ctx) {
       if (!file || busy) return;
       busy = true;
       renderBanners();
-      setBannerMsg('Memampatkan dan memuat naik...', 'muted');
+      let bitmap = null;
       try {
-        const out = await compressImage(file, 'banner');
+        bitmap = await readImage(file);
+        const crop = await openCropper(bitmap, 'banner');
+        if (!crop) {
+          busy = false;
+          renderBanners();
+          return;
+        }
+        setBannerMsg('Memampatkan dan memuat naik...', 'muted');
+        const out = await compressBitmap(bitmap, 'banner', crop);
+        releaseImage(bitmap);
+        bitmap = null;
         const up = await upload('banner', out.blob);
         busy = false;
         await applyKeys([...banners.map((b) => b.key), up.key], 'Banner ditambah.');
@@ -387,6 +398,8 @@ export function viewSettings(ctx) {
         if (err.status === 401) ctx.onError(err);
         else setBannerMsg(err instanceof ImageError || err.message ? err.message : 'Banner tak berjaya dimuat naik.');
         renderBanners();
+      } finally {
+        releaseImage(bitmap);
       }
     });
     renderBanners();

@@ -118,7 +118,51 @@ function setupCtaBar() {
   }).observe(anchor);
 }
 
+// Animasi ketika scroll: bahagian muncul (naik, zum) bila masuk skrin, kad muncul berturutan, dan phone di hero
+// bergerak perlahan (parallax). Dimatikan sepenuhnya untuk prefers-reduced-motion; tanpa JS semua kandungan kelihatan.
+function setupMotion() {
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce || !('IntersectionObserver' in window)) return;
+  const io = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        e.target.classList.add('in');
+        io.unobserve(e.target);
+      }
+    },
+    { rootMargin: '0px 0px -8% 0px', threshold: 0.12 },
+  );
+  for (const group of document.querySelectorAll('[data-stagger]')) {
+    [...group.children].forEach((child, i) => {
+      if (!child.hasAttribute('data-reveal')) child.setAttribute('data-reveal', group.dataset.stagger || 'up');
+      child.style.setProperty('--d', `${Math.min(i, 6) * 90}ms`);
+    });
+  }
+  document.documentElement.classList.add('motion'); // biasanya sudah ditanda oleh theme.js dalam <head>
+  window.kedaiMotionReady = true;
+  for (const el of document.querySelectorAll('[data-reveal]')) io.observe(el);
+
+  const device = document.querySelector('.device-wrap');
+  if (device) {
+    let ticking = false;
+    window.addEventListener(
+      'scroll',
+      () => {
+        if (ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(() => {
+          device.style.setProperty('--py', `${Math.round(Math.min(window.scrollY, 900) * -0.08)}px`);
+          ticking = false;
+        });
+      },
+      { passive: true },
+    );
+  }
+}
+
 setupTheme();
+setupMotion();
 setupMenu();
 setupBilling();
 setupCtaBar();

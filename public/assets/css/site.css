@@ -15,6 +15,8 @@ body.site {
   --accent-ink: #1b1403;
   --accent-text: #fbbf24;
   --teal: #2dd4bf;
+  --chip-bg: rgba(251, 191, 36, 0.14);
+  --chip-text: #fcd34d;
   --glow-a: rgba(251, 191, 36, 0.13);
   --glow-b: rgba(45, 212, 191, 0.09);
   --shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
@@ -39,6 +41,8 @@ html[data-theme="light"] body.site {
   --glass: rgba(255, 255, 255, 0.8);
   --accent-text: #b45309;
   --teal: #0f766e;
+  --chip-bg: #fef3c7;
+  --chip-text: #92400e;
   --glow-a: rgba(251, 191, 36, 0.2);
   --glow-b: rgba(15, 118, 110, 0.08);
   --shadow: 0 18px 50px rgba(15, 21, 48, 0.14);
@@ -55,13 +59,11 @@ body.site .btn-secondary:hover { background: var(--surface-2); }
 body.site .card { background: var(--surface); border-color: var(--border); border-radius: 20px; padding: var(--s5); }
 body.site .caption { color: var(--muted); }
 
-/* ---------- header terapung (pill) ---------- */
-.site-header { position: sticky; top: 0; z-index: 30; padding: var(--s3) var(--s4) 0; }
+/* ---------- header: bar penuh lebar dengan kesan kaca ---------- */
+.site-header { position: sticky; top: 0; z-index: 30; background: var(--glass); border-bottom: 1px solid var(--border); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
 .site-header .pill {
-  position: relative; max-width: 1040px; margin: 0 auto; min-height: 56px; padding: 6px 8px 6px var(--s4);
+  position: relative; max-width: 1040px; margin: 0 auto; min-height: 64px; padding: 6px var(--s4);
   display: flex; align-items: center; justify-content: space-between; gap: var(--s2);
-  background: var(--glass); border: 1px solid var(--border); border-radius: 999px;
-  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
 }
 .brand { display: inline-flex; align-items: center; gap: var(--s2); font-weight: 800; font-size: 18px; color: var(--text) !important; text-decoration: none; white-space: nowrap; }
 .brand svg { width: 26px; height: 26px; color: var(--accent-text); flex: none; }
@@ -80,7 +82,7 @@ html[data-theme="light"] .theme-sun { display: block; }
 html[data-theme="light"] .theme-moon { display: none; }
 .header-login { display: none; min-height: 44px; padding: 0 var(--s5); }
 .menu-panel {
-  position: absolute; left: 0; right: 0; top: calc(100% + 8px); padding: var(--s2);
+  position: absolute; left: var(--s3); right: var(--s3); top: calc(100% + 8px); padding: var(--s2);
   background: var(--surface); border: 1px solid var(--border); border-radius: 24px; box-shadow: var(--shadow);
   display: flex; flex-direction: column;
 }
@@ -97,10 +99,9 @@ html[data-theme="light"] .theme-moon { display: none; }
 .section { padding: 56px 0; }
 .section-head { max-width: 640px; margin: 0 auto var(--s6); text-align: center; }
 .eyebrow {
-  display: inline-flex; align-items: center; gap: var(--s2); margin: 0 0 var(--s3);
-  font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-text);
+  display: inline-block; margin: 0 0 var(--s3); padding: 5px 14px; border-radius: 999px;
+  font-size: 13px; font-weight: 700; color: var(--chip-text); background: var(--chip-bg);
 }
-.eyebrow::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 .section h2 { font-size: 28px; line-height: 1.2; letter-spacing: -0.01em; margin: 0 0 var(--s3); }
 .section-head p { color: var(--muted); font-size: 17px; margin: 0; }
 .accent { color: var(--accent-text); }
@@ -199,8 +200,12 @@ html[data-theme="light"] .phone-shot { border-color: #1a2140; }
 .faq-list details { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 0 var(--s4); }
 .faq-list summary { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: var(--s3); min-height: 60px; cursor: pointer; font-weight: 700; }
 .faq-list summary::-webkit-details-marker { display: none; }
-.faq-list summary::after { content: "+"; flex: none; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--surface-2); color: var(--accent-text); font-size: 20px; font-weight: 600; }
-.faq-list details[open] summary::after { content: "\2212"; }
+.faq-list summary::after {
+  content: ""; flex: none; width: 10px; height: 10px; margin-right: 6px;
+  border-right: 2px solid var(--accent-text); border-bottom: 2px solid var(--accent-text);
+  transform: translateY(-3px) rotate(45deg); transition: transform 0.2s ease;
+}
+.faq-list details[open] summary::after { transform: translateY(2px) rotate(-135deg); }
 .faq-list details p { margin: 0; padding: 0 0 var(--s4); color: var(--muted); }
 
 /* ---------- CTA akhir ---------- */
@@ -236,3 +241,19 @@ html[data-theme="light"] .phone-shot { border-color: #1a2140; }
 .legal code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-size: 0.92em; }
 .offline { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: var(--s5) var(--s4); }
 .offline-card { max-width: 420px; text-align: center; }
+
+/* ---------- animasi ketika scroll (site.js setupMotion; hanya bila .motion pada <html>) ---------- */
+/* Anak [data-stagger] disembunyikan terus oleh CSS (bukan menunggu atribut daripada JS) supaya tiada kilat semasa dimuat. */
+.motion [data-reveal], .motion [data-stagger] > * { opacity: 0; transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1); transition-delay: var(--d, 0ms); }
+.motion [data-reveal="up"], .motion [data-stagger="up"] > * { transform: translateY(28px); }
+.motion [data-reveal="zoom"], .motion [data-stagger="zoom"] > * { transform: scale(0.94); }
+.motion [data-reveal].in, .motion [data-stagger] > .in { opacity: 1; transform: none; }
+.motion .hero > div:first-child > * { animation: hero-in 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.motion .hero > div:first-child > :nth-child(2) { animation-delay: 0.08s; }
+.motion .hero > div:first-child > :nth-child(3) { animation-delay: 0.16s; }
+.motion .hero > div:first-child > :nth-child(4) { animation-delay: 0.24s; }
+.motion .hero > div:first-child > :nth-child(5) { animation-delay: 0.32s; }
+.motion .device-wrap { animation: device-in 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.device-wrap { translate: 0 var(--py, 0px); }
+@keyframes hero-in { from { opacity: 0; transform: translateY(20px); } }
+@keyframes device-in { from { opacity: 0; transform: translateY(40px) rotate(2deg); } }

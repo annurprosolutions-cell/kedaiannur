@@ -21,7 +21,7 @@ INSERT OR IGNORE INTO plans
   (code, name, max_products, max_categories, max_banners, max_storage_bytes, custom_template, hide_branding, price_month_sen, price_year_sen)
 VALUES
   ('free', 'Percuma',  20,  5, 1,  10485760, 0, 0,    0,     0),
-  ('pro',  'Pro',     500, 50, 5, 157286400, 1, 1, 2900, 29000);
+  ('pro',  'Pro',     500, 50, 5, 157286400, 1, 1, 2000, 20000);
 
 -- 2. Pengguna dan sesi -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (

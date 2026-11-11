@@ -1,9 +1,10 @@
 // GET /api/billing (S-14): pelan tersedia, status langganan semasa dan sejarah bayaran kedai sendiri.
-// Butang bayar BCL dan webhook dibina dalam Fasa 6; bclUrl kekal null sehingga itu.
+// bclUrl: borang BCL (BCL_FORM_URL); null jika belum ditetapkan, butang Bayar tak dipaparkan.
 
 import { json } from '../../lib/http.js';
 import { ownerShop } from '../../lib/shop.js';
 import { planStatus, planToApi } from '../../lib/plan.js';
+import { formUrl } from '../../lib/bcl.js';
 
 export async function onRequestGet({ env, data }) {
   const { shop, plan, error } = await ownerShop(env, data.user);
@@ -35,6 +36,7 @@ export async function onRequestGet({ env, data }) {
       status: p.status,
       createdAt: p.created_at,
     })),
-    bclUrl: null,
+    bclUrl: formUrl(env),
+    email: data.user.email,
   });
 }

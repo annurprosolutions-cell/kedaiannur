@@ -6,7 +6,8 @@ import { api, upload } from './api.js';
 import { getConfig, mediaUrl } from './config.js';
 import { h, icon, toast } from './ui.js';
 import { field, switchRow, textArea, textInput, formatBytes } from './forms.js';
-import { compressImage, ImageError } from './image.js';
+import { compressBitmap, readImage, releaseImage, ImageError } from './image.js';
+import { openCropper } from './cropper.js';
 import { LIMITS, MSG, cleanText, formatSen, parsePriceToSen, senToInput } from './rules.js';
 
 export const CATALOG_WARNING = 'katalog-gagal';
@@ -309,11 +310,16 @@ export function viewProductForm(ctx, productId) {
       if (!file) return;
       pickBtn.disabled = true;
       saveBtn.disabled = true;
-      setImgMsg('Memampatkan gambar...', 'muted');
+      let bitmap = null;
       try {
-        // Satu demi satu: jimat memori di phone murah.
-        const big = await compressImage(file, 'product');
-        const thumb = await compressImage(file, 'thumb');
+        bitmap = await readImage(file);
+        // Peniaga pilih bahagian gambar untuk bingkai segi empat (gambar potret atau landskap).
+        const crop = await openCropper(bitmap, 'product');
+        if (!crop) return; // dibatalkan: gambar sedia ada kekal
+        setImgMsg('Memampatkan gambar...', 'muted');
+        // Satu demi satu daripada gambar yang sama: jimat memori di phone murah.
+        const big = await compressBitmap(bitmap, 'product', crop);
+        const thumb = await compressBitmap(bitmap, 'thumb', crop);
         if (picked) URL.revokeObjectURL(picked.url);
         picked = { big: big.blob, thumb: thumb.blob, url: URL.createObjectURL(thumb.blob) };
         removeImage = false;
@@ -321,6 +327,7 @@ export function viewProductForm(ctx, productId) {
       } catch (err) {
         setImgMsg(err instanceof ImageError ? err.message : 'Gambar tak dapat diproses. Cuba gambar lain.');
       } finally {
+        releaseImage(bitmap);
         pickBtn.disabled = false;
         saveBtn.disabled = false;
         renderImage();

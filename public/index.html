@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ms" data-theme="dark">
+<html lang="ms" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -14,14 +14,14 @@
   <meta property="og:image" content="https://kedai.annurpro.com/assets/og-default.png">
   <meta property="og:locale" content="ms_MY">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="theme-color" content="#0A0F1F">
+  <meta name="theme-color" content="#F7F8FC">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="/assets/css/base.css?v=20261111b">
-  <link rel="stylesheet" href="/assets/css/site.css?v=20261111b">
-  <script src="/assets/js/theme.js?v=20261111b"></script>
-  <script type="module" src="/assets/js/site.js?v=20261111b"></script>
+  <link rel="stylesheet" href="/assets/css/base.css?v=20261111e">
+  <link rel="stylesheet" href="/assets/css/site.css?v=20261111e">
+  <script src="/assets/js/theme.js?v=20261111e"></script>
+  <script type="module" src="/assets/js/site.js?v=20261111e"></script>
   <link rel="preload" as="image" href="/assets/img/landing/contoh-kedai.webp" fetchpriority="high">
 </head>
 <body class="site has-cta">
@@ -64,11 +64,11 @@
 
     <section class="section" id="cara" aria-labelledby="cara-h">
       <div class="wrap">
-        <div class="section-head">
+        <div class="section-head" data-reveal="up">
           <p class="eyebrow">Cara kerja</p>
           <h2 id="cara-h">Tiga langkah, siap jual</h2>
         </div>
-        <ol class="steps">
+        <ol class="steps" data-stagger="up">
           <li class="card">
             <h3>Setup kedai</h3>
             <p>Isi nama kedai, pilih link (contoh: kedai.annurpro.com/kuih-mak-teh) dan nombor WhatsApp. Siap dalam beberapa minit.</p>
@@ -87,11 +87,11 @@
 
     <section class="section" aria-labelledby="shot-h">
       <div class="wrap">
-        <div class="section-head">
+        <div class="section-head" data-reveal="up">
           <p class="eyebrow">Dalam aplikasi</p>
           <h2 id="shot-h">Apa yang pelanggan dan anda nampak</h2>
         </div>
-        <div class="shots" tabindex="0" aria-label="Tangkapan skrin aplikasi">
+        <div class="shots" data-stagger="zoom" tabindex="0" aria-label="Tangkapan skrin aplikasi">
           <figure>
             <img class="phone-shot" src="/assets/img/landing/troli.webp" width="360" height="740" loading="lazy" alt="Troli pelanggan dengan kuantiti, nota setiap item dan jumlah">
             <figcaption>Troli pelanggan</figcaption>
@@ -114,11 +114,11 @@
 
     <section class="section" id="ciri" aria-labelledby="ciri-h">
       <div class="wrap">
-        <div class="section-head">
+        <div class="section-head" data-reveal="up">
           <p class="eyebrow">Ciri-ciri</p>
           <h2 id="ciri-h">Cukup untuk jual, tak serabut</h2>
         </div>
-        <div class="features">
+        <div class="features" data-stagger="up">
           <div class="card"><span class="f-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.7 12.4a1 1 0 001 .8h8.7a1 1 0 001-.8L20 8H6"/></svg></span><h3>Order tersusun</h3><p>Setiap order sampai dengan nama item, kuantiti, nota dan jumlah harga. Tak perlu tanya semula "nak berapa?".</p></div>
           <div class="card"><span class="f-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg></span><h3>Urus dari phone</h3><p>Tambah produk, tukar harga, tanda habis stok, atau tutup kedai sementara. Semua dari phone atau komputer.</p></div>
           <div class="card"><span class="f-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span><h3>Kategori dan carian</h3><p>Pelanggan cari produk atau tapis ikut kategori. Sesuai untuk menu yang panjang.</p></div>
@@ -131,17 +131,17 @@
 
     <section class="section" id="harga" aria-labelledby="harga-h">
       <div class="wrap">
-        <div class="section-head">
+        <div class="section-head" data-reveal="up">
           <p class="eyebrow">Harga</p>
           <h2 id="harga-h">Mula percuma, naik taraf bila perlu</h2>
         </div>
-        <div class="seg-wrap">
+        <div class="seg-wrap" data-reveal="up">
           <div class="seg" role="group" aria-label="Tempoh bayaran Pro">
             <button type="button" data-billing="month" aria-pressed="true">Bulanan</button>
             <button type="button" data-billing="year" aria-pressed="false">Tahunan</button>
           </div>
         </div>
-        <div class="pricing">
+        <div class="pricing" data-stagger="up">
           <div class="card stack">
             <div>
               <h3>Percuma</h3>
@@ -161,8 +161,8 @@
             <div>
               <h3>Pro</h3>
               <p class="price">
-                <span data-price="month"><span data-plan="pro.month">RM29</span> <small>sebulan</small></span>
-                <span data-price="year" hidden><span data-plan="pro.year">RM290</span> <small>setahun</small></span>
+                <span data-price="month"><span data-plan="pro.month">RM20</span> <small>sebulan</small></span>
+                <span data-price="year" hidden><span data-plan="pro.year">RM200</span> <small>setahun</small></span>
               </p>
               <p class="caption save" data-save hidden></p>
             </div>
@@ -183,11 +183,11 @@
 
     <section class="section" id="soalan" aria-labelledby="faq-h">
       <div class="wrap">
-        <div class="section-head">
+        <div class="section-head" data-reveal="up">
           <p class="eyebrow">Soalan lazim</p>
           <h2 id="faq-h">Yang selalu orang tanya</h2>
         </div>
-        <div class="faq-list">
+        <div class="faq-list" data-stagger="up">
           <details>
             <summary>Pelanggan perlu daftar akaun ke?</summary>
             <p>Tidak. Pelanggan cuma buka link kedai, pilih produk dan tekan hantar. Order dihantar melalui WhatsApp mereka sendiri.</p>
@@ -217,7 +217,7 @@
     </section>
 
     <section class="wrap" aria-labelledby="akhir-h">
-      <div class="card final-cta">
+      <div class="card final-cta" data-reveal="zoom">
         <h2 id="akhir-h">Sedia nak buka kedai?</h2>
         <p>Log masuk dengan Google, isi nama kedai dan nombor WhatsApp. Anda boleh mula jual hari ini juga.</p>
         <a class="btn" href="/app/">Buka kedai percuma</a>

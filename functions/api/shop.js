@@ -4,6 +4,7 @@
 //   PATCH  ubah tetapan (medan dalam senarai putih sahaja)
 //   DELETE padam kedai, semua baris D1 dan objek R2 (F-15, PDPA); body { confirmSlug }
 
+import { applyUnmatchedForShop } from '../../lib/bcl.js';
 import { fail, failFields, json, readJson } from '../../lib/http.js';
 import { columnFor, validateShopInput } from '../../lib/validate.js';
 import { getShopByOwner, ownerShop, shopResponseData } from '../../lib/shop.js';
@@ -66,6 +67,8 @@ export async function onRequestPost({ request, env, data }) {
   // Snapshot awal (katalog kosong). Jika gagal, catalog_dirty ditanda dan tulisan seterusnya cuba lagi;
   // kedai tetap dicipta supaya wizard tak diulang.
   await publishSnapshot(env, id);
+  // Bayar dahulu, daftar kemudian (IPD 6.3): bayaran BCL `unmatched` untuk e-mel ini terus digunakan.
+  await applyUnmatchedForShop(env, id, data.user.email);
 
   const r = await shopResponseData(env, data.user);
   return r.error || json(r.body, 201);

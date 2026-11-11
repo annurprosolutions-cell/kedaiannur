@@ -68,7 +68,8 @@ export class FakeD1 {
     this.sqlite.exec('BEGIN');
     try {
       const out = [];
-      for (const s of statements) out.push(await s.all());
+      // Seperti D1: setiap hasil ada meta.changes untuk pernyataan tulis.
+      for (const s of statements) out.push(/^\s*(select|with)\b/i.test(s.sql) ? await s.all() : await s.run());
       this.sqlite.exec('COMMIT');
       return out;
     } catch (err) {

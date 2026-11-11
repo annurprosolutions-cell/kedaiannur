@@ -120,7 +120,7 @@ test('GET /api/plans awam: harga dan had dari jadual plans', async () => {
   const res = await callApi(env, 'GET', '/api/plans');
   assert.equal(res.status, 200);
   assert.equal(res.headers.get('cache-control'), 'public, max-age=300');
-  assert.deepEqual(res.json.plans.map((p) => [p.code, p.maxProducts, p.priceMonthSen, p.priceYearSen]), [['free', 20, 0, 0], ['pro', 500, 2900, 29000]]);
+  assert.deepEqual(res.json.plans.map((p) => [p.code, p.maxProducts, p.priceMonthSen, p.priceYearSen]), [['free', 20, 0, 0], ['pro', 500, 2000, 20000]]);
 });
 
 test('slug "terma" disekat kerana bertembung dengan halaman terma', async () => {

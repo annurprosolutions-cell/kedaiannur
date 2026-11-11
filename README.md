@@ -15,7 +15,8 @@ Stack: Cloudflare Pages (frontend statik tanpa build step) + Pages Functions (AP
 | 5 | Status pelan (aktif, hampir tamat, toleransi, tamat) dengan notis di dashboard dan Langganan (S-14), templat mesej WhatsApp Pro dengan pratonton, banner berputar Pro, buang branding Pro | Kod siap, ujian lulus |
 | 7 | Panel superadmin `/admin/`: ringkasan kiraan, senarai dan carian kedai (S-16), tetapkan pelan, tambah bulan, gantung (S-17), padankan bayaran, slug reserved, bina semula katalog (S-18), audit log | Kod siap, ujian lulus |
 | 8 | Landing page (S-01) dengan tangkapan skrin sebenar, halaman `/privasi` dan `/terma`, eksport data JSON dan padam kedai (S-15), `/api/plans` awam, ukuran LCP | Kod siap, ujian lulus. Teks privasi dan terma ialah draf: semak sebelum launch |
-| 6 | Bayaran BCL dan webhook | Ditahan atas permintaan |
+| 6 | Langganan BCL: borang (RM20/RM200, kuantiti), webhook dengan pengesahan API, kiraan bulan, bayaran tak padan diterapkan bila kedai dicipta, S-14 butang Bayar | Kod siap, ujian lulus. Perlu token BCL dan kunci webhook (lihat bawah) |
+| 8c | Cropper gambar produk dan banner, landing cerah lalai dengan animasi scroll | Kod siap, ujian lulus |
 | 8b | Tema baharu landing (gelap midnight navy + aksen amber, mod cerah), PWA (manifest, service worker, ikon, offline, kad Pasang app) | Kod siap, ujian lulus |
 
 ## Struktur
@@ -207,8 +208,8 @@ WRANGLER_BIN=<path ke wrangler.js> node scripts/landing-shots.js
 
 ## Tema dan PWA
 
-- Tema landing, privasi, terma dan offline ada dalam `public/assets/css/site.css` sahaja: gelap (lalai, tidak ikut tetapan sistem) dengan butang tukar
-  ke cerah. Pilihan disimpan dalam `localStorage` (`kedai-tema`) dan dikenakan oleh `assets/js/theme.js` sebelum halaman dilukis.
+- Tema landing, privasi, terma dan offline ada dalam `public/assets/css/site.css` sahaja: cerah (lalai, tidak ikut tetapan sistem) dengan butang tukar
+  ke gelap. Animasi scroll (`data-reveal`, `data-stagger`) dimatikan untuk prefers-reduced-motion. Pilihan disimpan dalam `localStorage` (`kedai-tema`) dan dikenakan oleh `assets/js/theme.js` sebelum halaman dilukis.
   Dashboard `/app/` kekal dengan tema terangnya; tukar token dalam `base.css` jika mahu ia mengikut.
 - Manifest `/manifest.webmanifest` (scope `/`, start `/app/`), ikon PNG di `assets/icons/` (jana semula dengan `node scripts/make-icons.js`),
   dan screenshot untuk dialog pemasangan (jana dengan `scripts/landing-shots.js`).
@@ -218,6 +219,46 @@ WRANGLER_BIN=<path ke wrangler.js> node scripts/landing-shots.js
 - Pasang: Chrome/Edge/Android tunjuk butang "Pasang app" (landing dan Akaun). iPhone: Safari, Kongsi, Tambah ke Skrin Utama.
 - Pages menukar `/x.html` kepada `/x`. Setiap halaman statik baharu di akar mesti dikecualikan dalam `_routes.json` dalam **kedua-dua** bentuk
   (`/x.html` dan `/x`); `tests/static.test.js` menguatkuasakannya. Tambah juga nama itu ke `EXTRA_RESERVED` dalam `rules.js`.
+
+## Langganan BCL (Fasa 6)
+
+Borang: **KEDAI ANNURPRO - LANGGANAN PRO** (ID 21437), `https://annurprosolutions1.bcl.my/form/kedai-annurpro-pro`.
+Item `KEDAI PRO BULANAN` RM20 dan `KEDAI PRO TAHUNAN` RM200, kuantiti dibenarkan, medan wajib "E-mel akaun Google untuk log masuk".
+Borang ini dicipta **tidak aktif** dengan webhook dimatikan. Webhook hanya menerima item yang namanya mengandungi "KEDAI PRO",
+jadi jangan tukar nama item tanpa mengemas kini `lib/bcl.js`.
+
+Langkah (sekali sahaja, jangan tampal token atau kunci dalam chat):
+
+1. **D1 Console** (`kedai-db`): jalankan `db/0002_harga_pro.sql` untuk harga RM20/RM200.
+2. **Kunci webhook**: jana rentetan rawak panjang, contohnya dalam Console pelayar:
+   `crypto.randomUUID().replaceAll('-', '') + crypto.randomUUID().replaceAll('-', '')`. Simpan dalam password manager.
+3. **Cloudflare Pages**, projek, Settings, Variables and Secrets (Production):
+   - `BCL_FORM_ID` = `21437` (Text)
+   - `BCL_FORM_URL` = `https://annurprosolutions1.bcl.my/form/kedai-annurpro-pro` (Text)
+   - `BCL_WEBHOOK_KEY` = kunci langkah 2 (**Secret**)
+   - `BCL_API_TOKEN` = token BCL "API Read" sahaja (**Secret**)
+   Kemudian Deployments, Retry deployment (pemboleh ubah baharu hanya terpakai selepas deploy).
+4. **BCL**, borang Kedai, Settings:
+   - Webhook URL: `https://kedai.annurpro.com/api/webhooks/bcl/<kunci langkah 2>`, acara **Payment Success**, Enable.
+   - Medan tersuai: tukar teks bantuan (masih menyebut Jadual Sekolah dan DELIMa) kepada
+     "Guna e-mel Google yang sama dengan log masuk Kedai AnnurPro."
+5. **Ujian RM1 sebenar**: tambah item sementara `KEDAI PRO BULANAN UJIAN` RM1, aktifkan borang, bayar dengan e-mel
+   Google akaun ujian dalam medan tersuai. Dalam ~1 minit, Langganan akaun itu patut menunjukkan Pro dan bayaran dalam sejarah.
+   Semak log: Workers & Pages, projek, Functions, Real-time logs (`webhook BCL {...}`). Kemudian buang item RM1.
+6. Aktifkan borang. Letak peringatan kalendar sebulan sebelum token API BCL tamat (kira-kira setahun).
+
+Nota operasi:
+- BCL **tak mengulang** webhook yang gagal. Jika peniaga bayar tetapi Pro tak aktif: semak Real-time logs, kemudian
+  BCL, Tools, Webhook Logs, Resend. Hantar semula selamat (order_no UNIQUE, tiada masa berganda).
+- E-mel salah taip dalam borang: bayaran jadi "tak padan" di panel admin (S-18); padankan dengan kedai yang betul.
+- Bayar sebelum daftar: bayaran disimpan "tak padan" dan diterapkan automatik bila kedai dengan e-mel itu dicipta.
+- `BCL_ACCEPT_TEST=1` hanya untuk "Send Test Webhook" BCL; padam selepas ujian.
+
+## Gambar: cropper
+
+Selepas memilih gambar produk atau banner, peniaga memotong dalam bingkai mengikut paparan kedai (produk 1:1, banner 2:1):
+seret untuk alih, cubit atau slider untuk zum, Batal untuk kekal gambar lama. Pemampatan berlaku selepas potongan, jadi
+saiz fail lebih kecil. Kod: `public/assets/js/cropper.js`, `image.js` (`readImage`, `compressBitmap`).
 
 ## Senarai semak launch (IPD seksyen 9)
 
@@ -236,5 +277,5 @@ Buat semua ini di dashboard, bukan dalam kod. Jangan tampal token atau secret da
 7. **2FA** pada akaun Cloudflare, GitHub dan Google yang digunakan.
 8. **Ujian live**: log masuk di phone, cipta produk dengan gambar, buka `/<slug>`, hantar order ke WhatsApp, eksport data,
    kongsi link di WhatsApp untuk semak pratonton (OG).
-9. **Fasa 6 (BCL)**: bila disambung semula, letak token BCL dan kunci webhook terus dalam tetapan Pages (Encrypted), bukan dalam kod.
+9. **Fasa 6 (BCL)**: ikut langkah "Langganan BCL" di atas, termasuk ujian RM1 sebenar, sebelum borang diaktifkan.
 10. **PageSpeed Insights** untuk satu kedai sebenar (mobile) dan rekod LCP.

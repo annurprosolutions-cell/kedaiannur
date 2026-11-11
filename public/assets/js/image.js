@@ -70,58 +70,94 @@ async function encode(canvas, quality) {
   return jpeg;
 }
 
-// Kawasan sumber dan saiz sasaran penuh mengikut jenis.
-function plan(kind, srcW, srcH) {
+// Nisbah bingkai potongan setiap jenis (lebar / tinggi). Halaman kedai papar produk 1:1 dan banner 2:1.
+export const ASPECT = { banner: 2, product: 1, thumb: 1 };
+
+// Potongan lalai: kawasan terbesar di tengah dengan nisbah jenis itu (sama seperti object-fit: cover).
+export function centerCrop(kind, srcW, srcH) {
+  const a = ASPECT[kind] || 1;
+  let sw = srcW;
+  let sh = srcH;
+  if (srcW / srcH > a) sw = Math.round(srcH * a);
+  else sh = Math.round(srcW / a);
+  return { sx: Math.round((srcW - sw) / 2), sy: Math.round((srcH - sh) / 2), sw, sh };
+}
+
+// Kawasan sumber dan saiz sasaran penuh mengikut jenis. crop (pilihan) datang daripada cropper.
+function plan(kind, srcW, srcH, crop) {
   const spec = SPECS[kind];
+  const c = crop ? clampCrop(crop, srcW, srcH) : centerCrop(kind, srcW, srcH);
   if (kind === 'banner') {
-    let sw = srcW;
-    let sh = srcH;
-    if (srcW / srcH > 2) sw = Math.round(srcH * 2);
-    else sh = Math.round(srcW / 2);
-    const outW = Math.min(spec.width, sw);
-    return { sx: Math.round((srcW - sw) / 2), sy: Math.round((srcH - sh) / 2), sw, sh, outW, outH: Math.round(outW / 2) };
+    const outW = Math.min(spec.width, c.sw);
+    return { ...c, outW, outH: Math.max(1, Math.round(outW / 2)) };
   }
-  const ratio = Math.min(1, spec.maxSide / Math.max(srcW, srcH));
-  return { sx: 0, sy: 0, sw: srcW, sh: srcH, outW: Math.max(1, Math.round(srcW * ratio)), outH: Math.max(1, Math.round(srcH * ratio)) };
+  const ratio = Math.min(1, spec.maxSide / Math.max(c.sw, c.sh));
+  return { ...c, outW: Math.max(1, Math.round(c.sw * ratio)), outH: Math.max(1, Math.round(c.sh * ratio)) };
+}
+
+function clampCrop(c, srcW, srcH) {
+  const sw = Math.max(1, Math.min(srcW, Math.round(c.sw)));
+  const sh = Math.max(1, Math.min(srcH, Math.round(c.sh)));
+  const sx = Math.max(0, Math.min(srcW - sw, Math.round(c.sx)));
+  const sy = Math.max(0, Math.min(srcH - sh, Math.round(c.sy)));
+  return { sx, sy, sw, sh };
+}
+
+/** Semak dan baca fail gambar. Pemanggil mesti memanggil releaseImage() selepas selesai. */
+export async function readImage(file) {
+  if (!file || !looksLikeImage(file)) throw new ImageError('bukan-gambar', 'Fail ini bukan gambar. Pilih gambar JPG, PNG atau WebP.');
+  if (file.size > MAX_INPUT_BYTES) throw new ImageError('terlalu-besar-asal', 'Gambar terlalu besar (maksimum 30 MB). Pilih gambar lain.');
+  const bitmap = await decode(file);
+  if (!bitmap.width || !bitmap.height) {
+    releaseImage(bitmap);
+    throw new ImageError('gagal-baca', 'Gambar tak dapat dibaca. Cuba gambar lain.');
+  }
+  return bitmap;
+}
+
+export function releaseImage(bitmap) {
+  if (bitmap && typeof bitmap.close === 'function') bitmap.close();
 }
 
 /**
- * @param {File|Blob} file
- * @param {'banner'|'product'|'thumb'} kind
+ * Mampat gambar yang sudah dibaca. crop = { sx, sy, sw, sh } dalam piksel sumber (daripada cropper), atau kosong
+ * untuk potongan tengah.
  * @returns {Promise<{ blob: Blob, type: string, width: number, height: number }>}
  */
-export async function compressImage(file, kind) {
+export async function compressBitmap(bitmap, kind, crop) {
   const spec = SPECS[kind];
   if (!spec) throw new Error(`Jenis gambar tak dikenali: ${kind}`);
-  if (!file || !looksLikeImage(file)) throw new ImageError('bukan-gambar', 'Fail ini bukan gambar. Pilih gambar JPG, PNG atau WebP.');
-  if (file.size > MAX_INPUT_BYTES) throw new ImageError('terlalu-besar-asal', 'Gambar terlalu besar (maksimum 30 MB). Pilih gambar lain.');
-
-  const bitmap = await decode(file);
-  try {
-    const srcW = bitmap.width;
-    const srcH = bitmap.height;
-    if (!srcW || !srcH) throw new ImageError('gagal-baca', 'Gambar tak dapat dibaca. Cuba gambar lain.');
-    const p = plan(kind, srcW, srcH);
-
-    for (const scale of SCALES) {
-      const w = Math.max(1, Math.round(p.outW * scale));
-      const h = Math.max(1, Math.round(p.outH * scale));
-      const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      ctx.imageSmoothingQuality = 'high';
-      ctx.fillStyle = '#ffffff'; // PNG lut sinar menjadi latar putih (JPEG tiada alfa)
-      ctx.fillRect(0, 0, w, h);
-      ctx.drawImage(bitmap, p.sx, p.sy, p.sw, p.sh, 0, 0, w, h);
-
-      for (const q of QUALITIES) {
-        const blob = await encode(canvas, q);
-        if (blob.size <= spec.maxBytes) return { blob, type: blob.type, width: w, height: h };
-      }
+  const p = plan(kind, bitmap.width, bitmap.height, crop);
+  for (const scale of SCALES) {
+    const w = Math.max(1, Math.round(p.outW * scale));
+    const h = Math.max(1, Math.round(p.outH * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.fillStyle = '#ffffff'; // PNG lut sinar menjadi latar putih (JPEG tiada alfa)
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(bitmap, p.sx, p.sy, p.sw, p.sh, 0, 0, w, h);
+    for (const q of QUALITIES) {
+      const blob = await encode(canvas, q);
+      if (blob.size <= spec.maxBytes) return { blob, type: blob.type, width: w, height: h };
     }
-    throw new ImageError('terlalu-besar', 'Gambar masih terlalu besar selepas dimampatkan. Cuba gambar lain.');
+  }
+  throw new ImageError('terlalu-besar', 'Gambar masih terlalu besar selepas dimampatkan. Cuba gambar lain.');
+}
+
+/**
+ * Baca dan mampat dalam satu langkah (potongan tengah atau crop yang diberi).
+ * @param {File|Blob} file
+ * @param {'banner'|'product'|'thumb'} kind
+ */
+export async function compressImage(file, kind, crop) {
+  if (!SPECS[kind]) throw new Error(`Jenis gambar tak dikenali: ${kind}`);
+  const bitmap = await readImage(file);
+  try {
+    return await compressBitmap(bitmap, kind, crop);
   } finally {
-    if (typeof bitmap.close === 'function') bitmap.close();
+    releaseImage(bitmap);
   }
 }

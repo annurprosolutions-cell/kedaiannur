@@ -6,7 +6,8 @@
 import { api, upload } from './api.js';
 import { h, icon, toast } from './ui.js';
 import { field, textInput, swatches } from './forms.js';
-import { compressImage, ImageError } from './image.js';
+import { compressBitmap, readImage, releaseImage, ImageError } from './image.js';
+import { openCropper } from './cropper.js';
 import {
   DEFAULT_THEME, LIMITS, MSG, cleanText, formatWhatsapp, isReservedLocally, normalizeSlug, normalizeWhatsapp,
   slugFormatIssue, slugify,
@@ -231,15 +232,20 @@ export function viewSetup(ctx) {
       if (!file) return;
       pickBtn.disabled = true;
       save.disabled = true;
-      setMsg('Memampatkan gambar...', 'muted');
+      let bitmap = null;
       try {
-        const out = await compressImage(file, 'banner');
+        bitmap = await readImage(file);
+        const crop = await openCropper(bitmap, 'banner');
+        if (!crop) return;
+        setMsg('Memampatkan gambar...', 'muted');
+        const out = await compressBitmap(bitmap, 'banner', crop);
         clearBanner();
         st.banner = { blob: out.blob, url: URL.createObjectURL(out.blob), kb: Math.round(out.blob.size / 1024) };
         setMsg(`Siap dimampatkan (${st.banner.kb} KB).`, 'ok');
       } catch (err) {
         setMsg(err instanceof ImageError ? err.message : 'Gambar tak dapat diproses. Cuba gambar lain.');
       } finally {
+        releaseImage(bitmap);
         pickBtn.disabled = false;
         save.disabled = st.busy;
         renderBanner();
