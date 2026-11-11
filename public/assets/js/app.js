@@ -273,7 +273,33 @@ function meter(label, used, max, fmt = (n) => String(n)) {
   );
 }
 
-// S-09 Dashboard: link kedai, pelan, meter penggunaan had, pintasan. Salin dan kongsi link dibina dalam Fasa 4.
+function shopUrl(shop) {
+  return `${location.origin}/${shop.slug}`;
+}
+
+// F-09: salin link, kongsi ke WhatsApp dan buka kedai, satu sentuhan setiap satu.
+function shareActions(shop) {
+  const url = shopUrl(shop);
+  const copy = h('button', { type: 'button', class: 'btn btn-secondary' }, icon('salin'), h('span', {}, 'Salin link'));
+  copy.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast('Link disalin.', 'success');
+    } catch {
+      window.prompt('Salin link kedai anda:', url); // pelayar lama atau kebenaran papan klip ditolak
+    }
+  });
+  const text = `Jemput tengok dan order di ${shop.name}: ${url}`;
+  return h(
+    'div',
+    { class: 'share-row' },
+    copy,
+    h('a', { class: 'btn btn-wa', href: `https://wa.me/?text=${encodeURIComponent(text)}`, target: '_blank', rel: 'noopener' }, icon('whatsapp'), h('span', {}, 'Kongsi')),
+    h('a', { class: 'btn btn-secondary', href: url, target: '_blank', rel: 'noopener' }, icon('luar'), h('span', {}, 'Buka kedai')),
+  );
+}
+
+// S-09 Dashboard: link kedai dengan salin dan kongsi, pelan, meter penggunaan had, pintasan.
 function viewDashboard() {
   setTitle('Utama');
   const { user, shop } = state.me;
@@ -291,8 +317,9 @@ function viewDashboard() {
       'section',
       { class: 'card stack-sm' },
       h('div', { class: 'shop-head' }, h('h2', {}, shop.name), h('span', { class: isPro ? 'badge badge-pro' : 'badge' }, plan.name)),
-      h('p', { class: 'muted shop-link' }, `kedai.annurpro.com/${shop.slug}`),
+      h('p', { class: 'muted shop-link' }, shopUrl(shop).replace(/^https?:\/\//, '')),
       h('p', { class: 'caption' }, shop.isOpen ? 'Kedai sedang buka.' : 'Kedai sedang tutup. Pelanggan tak boleh hantar order.'),
+      shareActions(shop),
     ),
     usage.products === 0
       ? h(

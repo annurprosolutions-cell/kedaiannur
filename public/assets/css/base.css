@@ -207,3 +207,12 @@ textarea.input { padding: var(--s3); min-height: 96px; resize: vertical; line-he
 }
 .icon-btn svg { width: 20px; height: 20px; }
 .icon-btn:disabled { color: var(--disabled-text); background: var(--bg); cursor: not-allowed; }
+
+/* Cip tapisan (dashboard dan halaman kedai) */
+.chips { display: flex; gap: var(--s2); overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip {
+  flex: none; min-height: 40px; padding: 0 var(--s4); border-radius: 999px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--secondary); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.chip[aria-pressed="true"] { background: var(--primary); border-color: var(--primary); color: #fff; }

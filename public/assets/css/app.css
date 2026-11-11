@@ -76,13 +76,6 @@
 
 .back-link { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; text-decoration: none; }
 
-.chips { display: flex; gap: var(--s2); overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
-.chips::-webkit-scrollbar { display: none; }
-.chip {
-  flex: none; min-height: 40px; padding: 0 var(--s4); border-radius: 999px; border: 1px solid var(--border);
-  background: var(--surface); color: var(--secondary); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
-}
-.chip[aria-pressed="true"] { background: var(--primary); border-color: var(--primary); color: #fff; }
 
 .product-list, .cat-list { list-style: none; margin: 0; padding: 0; }
 .product-list { display: flex; flex-direction: column; gap: var(--s2); }
@@ -119,3 +112,9 @@ select.input { appearance: auto; background: var(--surface); }
 .cat-name { font-weight: 600; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
 .cat-actions { display: flex; gap: 2px; flex: none; }
 .cat-row.editing .input { flex: 1; }
+
+/* ---- Fasa 4: kongsi link kedai ---- */
+.share-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s2); padding-top: var(--s2); }
+.share-row .btn { flex-direction: column; gap: 4px; min-height: 64px; padding: var(--s2); font-size: 14px; }
+.btn-wa { background: var(--success); color: #fff; }
+.btn-wa:hover { background: #166534; }

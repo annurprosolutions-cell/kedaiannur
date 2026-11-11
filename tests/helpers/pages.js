@@ -73,7 +73,12 @@ export async function callApi(env, method, path, { headers = {}, body, origin = 
   const match = matchRoute(new URL(request.url).pathname, method);
   const handler = match ? pickHandler(match.route.mod, method) : pickHandler(catchAll, method);
 
-  const chain = [...[].concat(middleware.onRequest), handler];
+  // Middleware functions/api/_middleware.js hanya untuk /api/*. Jika handler panggil next() (atau tiada handler),
+  // Pages menghidang fail statik; di sini diwakili oleh 404 ringkas.
+  const pathname = new URL(request.url).pathname;
+  const isApi = pathname === '/api' || pathname.startsWith('/api/');
+  const staticFallback = async () => new Response('STATIC-404', { status: 404, headers: { 'Content-Type': 'text/html' } });
+  const chain = [...(isApi ? [].concat(middleware.onRequest) : []), ...(handler ? [handler] : []), staticFallback];
   let i = 0;
   const pending = [];
   const context = {

@@ -2,20 +2,28 @@
 <html lang="ms">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tidak dijumpai | Kedai AnnurPro</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Kedai AnnurPro</title>
   <meta name="robots" content="noindex">
+  <meta name="media-base" content="https://media.annurpro.com">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/css/base.css">
-  <link rel="stylesheet" href="/assets/css/app.css">
+  <link rel="stylesheet" href="/assets/css/shop.css">
+  <script type="module" src="/assets/js/shop.js"></script>
 </head>
-<body>
-  <main class="login-page">
-    <div class="card login-card stack">
-      <h1>Halaman tidak dijumpai</h1>
-      <p class="muted">Link ini mungkin salah taip atau kedai sudah ditutup.</p>
-      <a class="btn btn-secondary btn-block" href="/">Ke laman utama</a>
+<body class="shop-page">
+  <script type="application/json" id="page-data">null</script>
+  <div id="shop" aria-busy="true">
+    <div class="shop-wrap">
+      <div class="skeleton shop-sk-banner"></div>
+      <div class="skeleton shop-sk-line"></div>
     </div>
-  </main>
+  </div>
+  <noscript>
+    <div class="shop-wrap shop-state">
+      <h1>Halaman tidak dijumpai</h1>
+      <p><a href="/">Ke laman utama</a></p>
+    </div>
+  </noscript>
 </body>
 </html>

@@ -196,8 +196,8 @@ window.google = { accounts: { id: {
   disableAutoSelect() { window.__gsiDisabled = true; }
 } } };`;
 
-async function newPage({ width = 360, height = 780, sid } = {}) {
-  const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1 });
+async function newPage({ width = 360, height = 780, sid, permissions } = {}) {
+  const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1, permissions });
   if (sid) {
     await context.addCookies([
       { name: '__Host-sid', value: sid, domain: '127.0.0.1', path: '/', secure: true, httpOnly: true, sameSite: 'Lax' },
@@ -208,6 +208,15 @@ async function newPage({ width = 360, height = 780, sid } = {}) {
     if (url.startsWith('https://accounts.google.com/gsi/client')) {
       return route.fulfill({ contentType: 'text/javascript', body: FAKE_GSI });
     }
+    if (url.startsWith(`${MEDIA}/catalog/`)) {
+      // Fallback 404.html membaca snapshot terus dari domain media: hidang objek sebenar dari R2 local.
+      const key = decodeURIComponent(new URL(url).pathname.slice(1));
+      try {
+        return route.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: r2Get(key) });
+      } catch {
+        return route.fulfill({ status: 404, headers: { 'access-control-allow-origin': '*' }, body: 'tiada' });
+      }
+    }
     if (url.startsWith(`${MEDIA}/`)) return route.fulfill({ contentType: 'image/png', body: PNG_1X1 });
     if (url.startsWith(BASE)) return route.continue();
     return route.abort(); // tiada rangkaian luar dalam ujian
@@ -217,8 +226,8 @@ async function newPage({ width = 360, height = 780, sid } = {}) {
   if (process.env.E2E_DEBUG) page.on('console', (m) => console.log('[konsol]', m.type(), m.text()));
   page.on('console', (msg) => {
     const text = msg.text();
-    // 401 daripada /api/me ialah aliran biasa (belum login); yang lain dikira masalah.
-    if (msg.type() === 'error' && !/Failed to load resource: the server responded with a status of 401/.test(text)) {
+    // 401 daripada /api/me (belum login) dan 404 halaman yang sengaja diuji sebagai tak wujud ialah aliran biasa.
+    if (msg.type() === 'error' && !/Failed to load resource: the server responded with a status of (401|404)/.test(text)) {
       consoleProblems.push(`${page.url()}: ${text}`);
     }
   });
@@ -315,7 +324,7 @@ test('S-09: peniaga dengan kedai nampak dashboard dan bottom navigation di phone
   const { context, page } = await newPage({ sid: TOKEN_B });
   await page.goto(`${BASE}/app/`);
   await page.getByRole('heading', { name: 'Kedai Wakanda' }).waitFor();
-  await page.getByText('kedai.annurpro.com/wakanda').waitFor();
+  await page.getByText(`127.0.0.1:${PORT}/wakanda`).waitFor(); // di produksi: kedai.annurpro.com/wakanda
   const links = page.locator('.bottom-nav .nav-link');
   assert.equal(await links.count(), 5);
   assert.deepEqual(await links.allTextContents(), ['Utama', 'Produk', 'Tetapan', 'Langganan', 'Akaun']);
@@ -781,6 +790,202 @@ test('IPD "Had produk": produk ke-21 ditolak oleh server; UI papar had dan butan
   await page.getByRole('link', { name: 'Lihat pelan Pro' }).waitFor();
   const snap = JSON.parse(r2Get('catalog/kedai-produk.json').toString());
   assert.equal(snap.items.length, 20);
+  await context.close();
+});
+
+// ================================================================ Fasa 4
+
+const SHOP_W = 'kuih-mak-cik';
+
+test('Fasa 4 sediakan: kategori dan produk untuk kedai wizard', async () => {
+  const kuih = (await apiCall('POST', '/api/categories', TOKEN_W, { name: 'Kuih' })).json.category.id;
+  const minum = (await apiCall('POST', '/api/categories', TOKEN_W, { name: 'Minuman' })).json.category.id;
+  for (const body of [
+    { name: 'Karipap', priceSen: 100, categoryId: kuih, description: 'Inti kentang, 3 biji.' },
+    { name: 'Kuih Lapis', priceSen: 150, categoryId: kuih },
+    { name: 'Teh O Ais', priceSen: null, categoryId: minum },
+    { name: 'Roti Habis', priceSen: 200, isAvailable: false },
+  ]) {
+    assert.equal((await apiCall('POST', '/api/products', TOKEN_W, body)).status, 201, body.name);
+  }
+});
+
+test('S-02 halaman kedai: meta OG untuk pratonton WhatsApp, banner, grid 2 lajur di 360 px, label Habis', async () => {
+  const res = await fetch(`${BASE}/${SHOP_W}`);
+  assert.equal(res.status, 200);
+  assert.ok(res.headers.get('content-security-policy').includes("script-src 'self'"));
+  const html = await res.text();
+  const banner = (await apiGet('/api/shop', TOKEN_W)).json.banners[0].key;
+  assert.ok(html.includes('<meta property="og:title" content="Kuih Mak Cik">'));
+  assert.ok(html.includes(`<meta property="og:image" content="${MEDIA}/${banner}">`), 'banner sebagai gambar pratonton');
+  assert.ok(html.includes(`<meta property="og:url" content="${BASE}/${SHOP_W}">`));
+
+  const { context, page } = await newPage();
+  await page.goto(`${BASE}/${SHOP_W}`);
+  await page.getByRole('heading', { level: 1, name: 'Kuih Mak Cik' }).waitFor();
+  assert.equal(await page.locator('.shop-banner').getAttribute('src'), `${MEDIA}/${banner}`);
+  assert.equal(await page.locator('.p-card').count(), 4);
+  const [b1, b2, b3] = await Promise.all([0, 1, 2].map((i) => page.locator('.p-card').nth(i).boundingBox()));
+  assert.ok(Math.abs(b1.y - b2.y) < 1 && b2.x > b1.x && b3.y > b1.y, 'grid 2 lajur');
+  const sold = page.locator('.p-card', { hasText: 'Roti Habis' });
+  await sold.getByText('Habis', { exact: true }).waitFor();
+  assert.equal(await sold.getByRole('button', { name: /^Tambah/ }).isDisabled(), true);
+  assert.ok((await page.locator('.p-card', { hasText: 'Teh O Ais' }).textContent()).includes('Hubungi untuk harga'));
+  await touchTargets(page, '.p-add');
+  const chip = await page.getByRole('button', { name: 'Semua' }).evaluate((el) => getComputedStyle(el).borderRadius);
+  assert.equal(chip, '999px', 'cip kategori bergaya');
+  await noHorizontalScroll(page);
+  await shot(page, '40-kedai');
+
+  // carian dan tapis kategori
+  await page.getByLabel('Cari produk').fill('lapis');
+  assert.equal(await page.locator('.p-card').count(), 1);
+  await page.getByLabel('Cari produk').fill('');
+  await page.getByRole('button', { name: 'Minuman' }).click();
+  assert.equal(await page.locator('.p-card').count(), 1);
+  await page.getByRole('button', { name: 'Semua' }).click();
+  await context.close();
+});
+
+test('IPD Mesej WhatsApp dan Troli: 3 item (1 tanpa harga), nota, refresh kekal, nama wajib, wa.me dengan mesej tepat', async () => {
+  const { context, page } = await newPage();
+  await page.goto(`${BASE}/${SHOP_W}`);
+  await page.getByRole('heading', { level: 1, name: 'Kuih Mak Cik' }).waitFor();
+  assert.equal(await page.locator('.cart-bar').isVisible(), false, 'troli kosong: bar tersembunyi');
+
+  await page.getByRole('button', { name: 'Tambah Karipap ke troli' }).click();
+  await page.getByRole('button', { name: 'Lihat Kuih Lapis' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Kuih Lapis' });
+  await sheet.waitFor();
+  assert.ok(!/\bnull\b/.test(await sheet.textContent()), 'tiada teks "null" bila produk tiada penerangan');
+  await sheet.getByRole('button', { name: 'Tambah Kuih Lapis' }).click();
+  await sheet.getByLabel('Nota (pilihan)').fill('tak manis');
+  await sheet.getByRole('button', { name: /Tambah ke troli · RM3\.00/ }).click();
+  await sheet.waitFor({ state: 'detached' });
+  await page.getByRole('button', { name: 'Tambah Teh O Ais ke troli' }).click();
+  const bar = page.locator('.cart-bar');
+  await bar.getByText('4 item').waitFor();
+  assert.ok((await bar.textContent()).includes('RM4.00 +'), await bar.textContent());
+  await shot(page, '41-kedai-troli');
+
+  await page.reload();
+  await page.locator('.cart-bar').getByText('4 item').waitFor();
+
+  await page.locator('.cart-bar').click();
+  const cart = page.getByRole('dialog', { name: 'Troli' });
+  await cart.waitFor();
+  await cart.getByRole('button', { name: 'Tambah Karipap' }).click();
+  await cart.locator('.c-sum', { hasText: 'RM5.00' }).waitFor();
+  await cart.getByText('Item tanpa harga tak dikira').waitFor();
+  await touchTargets(page, '.c-bottom .icon-btn');
+  await noHorizontalScroll(page);
+  await shot(page, '42-troli');
+  await cart.getByRole('button', { name: 'Teruskan' }).click();
+
+  const co = page.getByRole('dialog', { name: 'Semak dan hantar' });
+  await co.waitFor();
+  const send = co.getByRole('link', { name: 'Hantar ke WhatsApp' });
+  await send.click(); // tanpa nama: tiada popup, ralat dipaparkan
+  await co.getByText('Nama diperlukan.').waitFor();
+  assert.equal(context.pages().length, 1, 'WhatsApp tak dibuka sebelum nama diisi');
+  await co.getByLabel('Nama', { exact: true }).fill('Ali');
+  await co.getByLabel('Nota untuk kedai (pilihan)').fill('Ambil pukul 5');
+  const expected = [
+    'Hai Kuih Mak Cik, saya nak order:',
+    '',
+    '1. Karipap x2 = RM2.00',
+    '2. Kuih Lapis x2 = RM3.00',
+    '   Nota: tak manis',
+    '3. Teh O Ais x1 (harga belum ditetapkan)',
+    '',
+    'Jumlah: RM5.00 (belum termasuk item tanpa harga)',
+    '',
+    'Nama: Ali',
+    'Nota: Ambil pukul 5',
+  ].join('\n');
+  assert.equal(await co.locator('.msg-preview').textContent(), expected);
+  assert.ok(!/\bnull\b/.test(await co.textContent()), 'tiada teks "null" dalam lembaran');
+  const href = await send.getAttribute('href');
+  const link = new URL(href);
+  assert.equal(`${link.origin}${link.pathname}`, 'https://wa.me/60123456789');
+  assert.equal(link.searchParams.get('text'), expected, 'mesej dalam link sama dengan pratonton');
+  await noHorizontalScroll(page);
+  await shot(page, '43-semak-hantar');
+
+  // Rangkaian luar disekat dalam ujian: semak permintaan yang popup cuba buka.
+  const [req] = await Promise.all([context.waitForEvent('request', (r) => r.url().startsWith('https://wa.me/')), send.click()]);
+  assert.equal(new URL(req.url()).searchParams.get('text'), expected);
+  for (const p of context.pages().slice(1)) await p.close();
+  await co.getByRole('button', { name: 'Kosongkan troli' }).click();
+  await page.getByText('Troli dikosongkan').waitFor();
+  assert.equal(await page.locator('.cart-bar').isVisible(), false);
+  assert.equal(await page.evaluate((k) => localStorage.getItem(k), `kedai:troli:${SHOP_W}`), null);
+  await context.close();
+});
+
+test('IPD Kedai tutup: troli dilumpuhkan dan notis dipaparkan; kedai tak wujud: S-06 404', async () => {
+  assert.equal((await apiCall('PATCH', '/api/shop', TOKEN_W, { isOpen: false })).status, 200);
+  const { context, page } = await newPage();
+  await page.goto(`${BASE}/${SHOP_W}`);
+  await page.getByText('Kedai sedang tutup.').waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Tambah Karipap ke troli' }).isDisabled(), true);
+  await shot(page, '44-kedai-tutup');
+  assert.equal((await apiCall('PATCH', '/api/shop', TOKEN_W, { isOpen: true })).status, 200);
+
+  const res = await page.goto(`${BASE}/tiada-kedai-xyz`);
+  assert.equal(res.status(), 404);
+  await page.getByRole('heading', { name: 'Kedai tak dijumpai' }).waitFor();
+  await context.close();
+});
+
+test('IPD XSS: nama kedai dengan </script> dan HTML di halaman awam dipapar sebagai teks', async () => {
+  const evil = '</script><img src=x onerror="window.__xss=3">';
+  assert.equal((await apiCall('PATCH', '/api/shop', TOKEN_E, { name: evil })).status, 200);
+  const { context, page } = await newPage();
+  await page.goto(`${BASE}/tetapan-baru`);
+  await page.locator('h1').waitFor();
+  assert.equal(await page.locator('h1').textContent(), evil);
+  assert.equal(await page.evaluate(() => window.__xss), undefined);
+  await context.close();
+});
+
+test('IPD 4.2 fallback (Functions tak berjalan): 404.html memuat snapshot dari domain media', async () => {
+  const fallback = await (await fetch(`${BASE}/a/b`)).text();
+  assert.ok(fallback.includes('id="page-data">null'), '404.html ialah kerangka kedai');
+  const { context, page } = await newPage();
+  await page.route(`${BASE}/${SHOP_W}`, (route) => route.fulfill({ status: 404, contentType: 'text/html', body: fallback }));
+  await page.goto(`${BASE}/${SHOP_W}`);
+  await page.getByRole('heading', { level: 1, name: 'Kuih Mak Cik' }).waitFor();
+  assert.equal(await page.locator('.p-card').count(), 4);
+  await page.getByRole('button', { name: 'Tambah Karipap ke troli' }).click();
+  await page.locator('.cart-bar').getByText('1 item').waitFor();
+  await page.goto(`${BASE}/a/b`);
+  await page.getByRole('heading', { name: 'Halaman tidak dijumpai' }).waitFor();
+  await context.close();
+});
+
+test('Desktop: grid 4 lajur', async () => {
+  const { context, page } = await newPage({ width: 1280, height: 900 });
+  await page.goto(`${BASE}/${SHOP_W}`);
+  await page.locator('.p-card').first().waitFor();
+  const ys = await Promise.all([0, 1, 2, 3].map(async (i) => (await page.locator('.p-card').nth(i).boundingBox()).y));
+  assert.ok(ys.every((y) => Math.abs(y - ys[0]) < 1), '4 kad sebaris');
+  await shot(page, '45-kedai-desktop');
+  await context.close();
+});
+
+test('F-09 dashboard: salin link, kongsi ke WhatsApp, buka kedai', async () => {
+  const { context, page } = await newPage({ sid: TOKEN_W, permissions: ['clipboard-read', 'clipboard-write'] });
+  await page.goto(`${BASE}/app/`);
+  await page.getByRole('button', { name: 'Salin link' }).click();
+  await page.getByText('Link disalin.').waitFor();
+  assert.equal(await page.evaluate(() => navigator.clipboard.readText()), `${BASE}/${SHOP_W}`);
+  const share = await page.getByRole('link', { name: 'Kongsi' }).getAttribute('href');
+  assert.equal(new URL(share).searchParams.get('text'), `Jemput tengok dan order di Kuih Mak Cik: ${BASE}/${SHOP_W}`);
+  assert.equal(await page.getByRole('link', { name: 'Buka kedai' }).getAttribute('href'), `${BASE}/${SHOP_W}`);
+  await touchTargets(page, '.share-row .btn');
+  await noHorizontalScroll(page);
+  await shot(page, '46-dashboard-kongsi');
   await context.close();
 });
 

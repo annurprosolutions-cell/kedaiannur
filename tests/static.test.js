@@ -58,7 +58,8 @@ test('HTML statik tiada skrip inline (CSP akan sekat)', () => {
   walk(PUBLIC);
   for (const f of htmlFiles) {
     const html = readFileSync(f, 'utf8');
-    const inline = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>/g)];
+    // Blok data JSON (type="application/json") tak dilaksanakan, jadi dibenarkan oleh CSP.
+    const inline = [...html.matchAll(/<script(?![^>]*\bsrc=)(?![^>]*type="application\/json")[^>]*>/g)];
     assert.equal(inline.length, 0, `${f} ada skrip inline`);
     assert.ok(!/\son[a-z]+=/i.test(html), `${f} ada atribut on*`);
   }

@@ -19,7 +19,9 @@ export class FakeR2 {
 
   async get(key) {
     const o = this.objects.get(key);
-    return o ? { key, size: o.bytes.length, body: o.bytes, arrayBuffer: async () => o.bytes.buffer } : null;
+    return o
+      ? { key, size: o.bytes.length, body: o.bytes, arrayBuffer: async () => o.bytes.buffer, text: async () => new TextDecoder().decode(o.bytes) }
+      : null;
   }
 
   async delete(keys) {

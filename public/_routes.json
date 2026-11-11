@@ -1,7 +1,9 @@
 {
   "version": 1,
   "description": "Functions hanya untuk /api/* dan laluan kedai /<slug>. Fail statik dikecualikan supaya tak mengira dalam kuota Functions. Tambah setiap halaman statik baharu di peringkat akar ke senarai exclude.",
-  "include": ["/*"],
+  "include": [
+    "/*"
+  ],
   "exclude": [
     "/",
     "/index.html",
@@ -13,6 +15,8 @@
     "/app/*",
     "/admin",
     "/admin/*",
-    "/assets/*"
+    "/assets/*",
+    "/shop",
+    "/shop.html"
   ]
 }

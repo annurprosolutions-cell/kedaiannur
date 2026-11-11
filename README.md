@@ -11,7 +11,8 @@ Stack: Cloudflare Pages (frontend statik tanpa build step) + Pages Functions (AP
 | 1 | Login Google, sesi D1, `/api/me`, logout, semakan Origin, kerangka `/app/` | Kod siap, ujian lulus |
 | 2 | Setup kedai 3 langkah (S-08), semakan slug, WhatsApp, warna, mampat dan muat naik gambar, banner, tetapan kedai (S-13) | Kod siap, ujian lulus. Perlu R2 dan binding `MEDIA` untuk uji secara live |
 | 3 | Kategori (S-12), produk (S-10, S-11), had pelan di server, snapshot `catalog/<slug>.json` ke R2, dashboard dengan meter (S-09), pembersihan gambar yatim | Kod siap, ujian lulus |
-| 4 hingga 8 | Ikut IPD | Belum mula |
+| 4 | Halaman kedai awam `/<slug>` (S-02 hingga S-06), troli, hantar order ke WhatsApp, pratonton link, salin dan kongsi link (S-09), fallback 404.html | Kod siap, ujian lulus |
+| 5 hingga 8 | Ikut IPD | Belum mula |
 
 ## Struktur
 
@@ -67,6 +68,7 @@ Nama menu dalam dashboard mungkin berbeza sedikit; ikut label semasa.
      | `MEDIA_BASE_URL` | `https://media.annurpro.com` | Text |
      | `SESSION_DAYS` | `30` | Text |
      | `GRACE_DAYS` | `7` | Text |
+     | `SUPPORT_EMAIL` | e-mel sokongan untuk pautan "Lapor kedai ini" (pilihan; kosong = pautan disembunyikan) | Text |
 
      `BCL_*` hanya diperlukan dalam Fasa 6. Secret dimasukkan terus di sini, jangan tampal dalam chat.
    - Binding `MEDIA` dan bucket `kedai-media` (langkah 3) **diperlukan mulai Fasa 2** untuk muat naik gambar. Tanpa binding,
@@ -141,8 +143,20 @@ dan sesi disuntik terus ke D1 local.
 Gambar yang dimuat naik tetapi tak pernah disimpan (borang ditinggalkan) dipadam secara oportunistik selepas setiap muat naik
 baharu kedai itu, jika berumur lebih 6 jam dan tak dirujuk oleh produk atau banner (`sweepOrphans` dalam `lib/media.js`).
 
-## Nota untuk Fasa 4
+## Halaman kedai awam (Fasa 4)
 
-- Halaman `/<slug>` baca `catalog/<slug>.json` (format dalam BSD seksyen 5). Kunci gambar `t`/`i` dan banner `k` ialah kunci R2;
-  URL penuh = `MEDIA_BASE_URL` + `/` + kunci.
-- `shop.html` (fallback) perlu ditambah ke `exclude` dalam `_routes.json` bersama `/shop`.
+- `functions/[slug].js` baca `catalog/<slug>.json` dari R2 (tiada D1), suntik meta OG (pratonton WhatsApp) dan data ke `public/shop.html`.
+  Header keselamatan diset dalam `lib/shoppage.js` kerana `_headers` tak terpakai pada respons Function (ujian memastikan CSP sama).
+- Troli dalam `localStorage` pelanggan (`kedai:troli:<slug>`), maksimum 30 item berbeza. Tiada order disimpan di server.
+- Mesej WhatsApp dibina oleh `public/assets/js/order.js` (templat lalai, atau templat Pro dengan `{kedai}` `{senarai_item}` `{jumlah}`
+  `{nama}` `{alamat}` `{nota}`). Amaran bila melebihi 1,500 aksara.
+- **Fallback "fail open":** bila had Functions harian dicapai, Pages hidang `404.html` untuk `/<slug>`. Halaman itu baca slug dari URL
+  dan ambil `https://media.annurpro.com/catalog/<slug>.json` terus. Ini memerlukan **CORS pada bucket R2**:
+  R2, `kedai-media`, Settings, CORS Policy, tambah:
+
+  ```json
+  [{ "AllowedOrigins": ["https://kedai.annurpro.com"], "AllowedMethods": ["GET"], "AllowedHeaders": [], "MaxAgeSeconds": 3600 }]
+  ```
+
+  Jangan guna `_redirects` untuk fallback ini: peraturan `/:slug` mengatasi fail statik sebenar (`/robots.txt`, `/favicon.svg`).
+- Pratonton WhatsApp guna banner pertama sebagai `og:image`, atau `public/assets/og-default.png` jika tiada banner.
