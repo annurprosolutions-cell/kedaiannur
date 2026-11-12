@@ -1553,7 +1553,7 @@ test('Logo: muat naik melalui cropper bulat; kedai papar logo; Pro guna logo seb
       await noHorizontalScroll(page);
       await shot(page, '17-kedai-logo');
     } else {
-      assert.deepEqual(icons, ['/favicon.svg'], 'Percuma: favicon lalai');
+      assert.deepEqual(icons, ['/favicon.svg?v=2'], 'Percuma: favicon lalai');
     }
     await context.close();
   }
