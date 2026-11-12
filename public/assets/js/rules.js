@@ -62,8 +62,8 @@ export const MSG = {
 };
 
 // Slug yang tak boleh digunakan walaupun tiada dalam jadual reserved_slugs: ia bertembung dengan fail statik di akar
-// (index.html, 404.html, terma.html, offline.html). privasi sudah ada dalam reserved_slugs.
-const EXTRA_RESERVED = new Set(['index', '404', 'terma', 'offline']);
+// (index.html, 404.html, terma.html, offline.html, marketplace.html, sitemap.xml, robots.txt). privasi sudah ada dalam reserved_slugs.
+const EXTRA_RESERVED = new Set(['index', '404', 'terma', 'offline', 'marketplace', 'sitemap', 'robots']);
 
 export function isReservedLocally(slug) {
   return EXTRA_RESERVED.has(slug);
@@ -260,3 +260,37 @@ export function socialUrl(kind, handle) {
   if (kind === 'facebook') return /^\d+$/.test(handle) ? `https://www.facebook.com/profile.php?id=${h}` : `https://www.facebook.com/${h}`;
   return '';
 }
+
+// ---------------------------------------------------------------- Marketplace
+
+// Jenis kedai untuk tapisan Marketplace. Kod disimpan dalam shops.category; jangan tukar kod sedia ada.
+export const SHOP_CATEGORIES = [
+  { code: 'makanan', name: 'Makanan dan minuman' },
+  { code: 'kuih', name: 'Kek, kuih dan pastri' },
+  { code: 'sejuk-beku', name: 'Makanan sejuk beku' },
+  { code: 'pakaian', name: 'Pakaian dan tudung' },
+  { code: 'kecantikan', name: 'Kecantikan dan penjagaan diri' },
+  { code: 'kesihatan', name: 'Kesihatan dan herba' },
+  { code: 'rumah', name: 'Rumah dan dekorasi' },
+  { code: 'kraf', name: 'Kraftangan dan hadiah' },
+  { code: 'gajet', name: 'Gajet dan elektronik' },
+  { code: 'digital', name: 'Produk digital dan kursus' },
+  { code: 'perkhidmatan', name: 'Perkhidmatan' },
+  { code: 'kanak', name: 'Bayi dan kanak-kanak' },
+  { code: 'tani', name: 'Pertanian dan hasil kebun' },
+  { code: 'lain', name: 'Lain-lain' },
+];
+
+export function categoryName(code) {
+  const c = SHOP_CATEGORIES.find((x) => x.code === code);
+  return c ? c.name : '';
+}
+
+/** Jenis kedai: '' (belum dipilih) atau kod yang sah. */
+export function normalizeCategory(input) {
+  if (input === null || input === undefined || input === '') return { value: '' };
+  return typeof input === 'string' && SHOP_CATEGORIES.some((c) => c.code === input) ? { value: input } : { error: 'Pilih jenis kedai daripada senarai.' };
+}
+
+// Syarat kelengkapan sebelum kedai dipaparkan di Marketplace (semua pelan), supaya Marketplace tak dipenuhi kedai kosong.
+export const MARKET_MIN_PRODUCTS = 3;

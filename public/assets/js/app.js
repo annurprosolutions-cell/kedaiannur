@@ -13,6 +13,7 @@ import { formatBytes } from './forms.js';
 import { viewBilling } from './billing.js';
 import { hiddenNotice, planBadge, planNotice } from './plannotice.js';
 import { registerServiceWorker, onInstallChange, promptInstall } from './pwa.js';
+import { viewQr } from './qr.js';
 
 const root = document.getElementById('app');
 const state = { me: null };
@@ -32,6 +33,7 @@ function resolveRoute() {
   if (a === 'produk' && b === 'baru') return { nav: 'produk', view: () => titled('Tambah produk', viewProductForm(ctx, null)) };
   if (a === 'produk' && b) return { nav: 'produk', view: () => titled('Ubah produk', viewProductForm(ctx, b)) };
   if (a === 'kategori') return { nav: 'produk', view: () => titled('Kategori', viewCategories(ctx)) };
+  if (a === 'qr') return { nav: '', view: () => titled('Kod QR', viewQr(ctx)) };
   return NAV.some((n) => n.route === a) ? { nav: a, view: VIEWS[a] } : { nav: '', view: VIEWS[''] };
 }
 
@@ -370,6 +372,7 @@ function viewDashboard() {
       h('p', { class: 'muted shop-link' }, shopUrl(shop).replace(/^https?:\/\//, '')),
       h('p', { class: 'caption' }, shop.isOpen ? 'Kedai sedang buka.' : 'Kedai sedang tutup. Pelanggan tak boleh hantar order.'),
       shareActions(shop),
+      h('a', { class: 'btn btn-secondary btn-block', href: '#/qr' }, icon('senarai'), h('span', {}, 'Kod QR dan poster kedai')),
     ),
     setupChecklist(shop, usage),
     usage.products === 0

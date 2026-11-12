@@ -19,7 +19,8 @@ const ACTION_LABEL = {
   set_plan: 'Tetapkan pelan', add_months: 'Tambah bulan', suspend: 'Gantung', unsuspend: 'Buka gantung',
   match_payment: 'Padankan bayaran', rename_slug: 'Tukar slug', rebuild_catalogs: 'Bina semula katalog',
   add_reserved_slug: 'Tambah slug reserved', remove_reserved_slug: 'Buang slug reserved',
-  remind: 'Peringatan WhatsApp', bcl_payment: 'Bayaran BCL', apply_unmatched: 'Bayaran awal diterapkan',
+  remind: 'Peringatan WhatsApp', market_hide: 'Sembunyi dari Marketplace', market_show: 'Papar di Marketplace',
+  market_feature: 'Jadikan Pilihan Admin', market_unfeature: 'Buang Pilihan Admin', bcl_payment: 'Bayaran BCL', apply_unmatched: 'Bayaran awal diterapkan',
 };
 
 const planBadge = (st) => h('span', { class: STATE_CLASS[st.state] || 'badge' }, STATE_LABEL[st.state] || st.state);
@@ -296,6 +297,26 @@ function viewShop(id) {
     }
   }
 
+  // Marketplace: status kelayakan, sembunyi (kandungan tak sesuai) dan "Pilihan Admin" (dipaparkan paling atas).
+  function marketSection(s) {
+    const m = s.market || { listed: false, issues: [] };
+    const hidden = m.issues.some((t) => t.startsWith('Disembunyikan'));
+    const btn = (label, action, ok, cls = 'btn btn-secondary') => h('button', { type: 'button', class: cls, onclick: (e) => act({ action }, ok, e.currentTarget) }, label);
+    return h(
+      'section',
+      { class: 'card stack-sm' },
+      h('h2', {}, 'Marketplace'),
+      h('p', { class: 'muted' }, `${m.listed ? 'Dipaparkan' : 'Tidak dipaparkan'}${m.featured ? ' · Pilihan Admin' : ''}${s.category ? '' : ' · jenis kedai belum dipilih'}`),
+      m.issues.length ? h('ul', { class: 'issue-list caption' }, m.issues.map((t) => h('li', {}, t))) : null,
+      h(
+        'div',
+        { class: 'btn-row-3' },
+        hidden ? btn('Papar semula', 'market_show', 'Kedai dipaparkan semula.') : btn('Sembunyikan', 'market_hide', 'Kedai disembunyikan dari Marketplace.', 'btn btn-danger'),
+        m.featured ? btn('Buang Pilihan', 'market_unfeature', 'Pilihan Admin dibuang.') : btn('Pilihan Admin', 'market_feature', 'Kedai dijadikan Pilihan Admin.'),
+      ),
+    );
+  }
+
   function render(d) {
     const s = d.shop;
     document.title = `${s.name} | Superadmin`;
@@ -385,6 +406,7 @@ function viewShop(id) {
           h('div', { class: 'btn-row-3' }, addBtns),
         ),
         h('section', { class: 'card stack-sm' }, h('h2', {}, 'Gantung'), suspendBlock),
+        marketSection(s),
         h('section', { class: 'card stack-sm' }, h('h2', {}, 'Bayaran'), payments),
       ),
       h('section', { class: 'card stack-sm' }, h('h2', {}, 'Audit log'), auditList),

@@ -18,7 +18,8 @@ Stack: Cloudflare Pages (frontend statik tanpa build step) + Pages Functions (AP
 | 6 | Langganan BCL: borang (RM20/RM200, kuantiti), webhook dengan pengesahan API, kiraan bulan, bayaran tak padan diterapkan bila kedai dicipta, S-14 butang Bayar | Kod siap, ujian lulus. Perlu token BCL dan kunci webhook (lihat bawah) |
 | 8c | Cropper gambar produk dan banner, landing cerah lalai dengan animasi scroll | Kod siap, ujian lulus |
 | 8d | Logo kedai (semua pelan); Pro: logo jadi favicon dan ikon skrin utama kedai | Siap, live |
-| P1 | Pusingan 1: jenama AnnurPro (favicon, ikon PWA, OG), maklumat hubungan kedai, senarai semak setup, panduan dan templat banner, statistik admin dengan carta, peringatan tamat melalui WhatsApp | Kod siap, ujian lulus. Perlu `db/0004_maklumat_kedai.sql` di D1 sebelum deploy |
+| P1 | Pusingan 1: jenama AnnurPro (favicon, ikon PWA, OG), maklumat hubungan kedai, senarai semak setup, panduan dan templat banner, statistik admin dengan carta, peringatan tamat melalui WhatsApp | Siap, live |
+| P2 | Pusingan 2: Marketplace (jenis kedai, Pro automatik, Percuma pilih masuk, syarat kelengkapan, Pilihan Admin), sitemap.xml, JSON-LD kedai, kod QR dan poster A5 (Fasa 10) | Kod siap, ujian lulus. Perlu `db/0005_marketplace.sql` di D1 sebelum deploy |
 | 8b | Tema baharu landing (gelap midnight navy + aksen amber, mod cerah), PWA (manifest, service worker, ikon, offline, kad Pasang app) | Kod siap, ujian lulus |
 
 ## Struktur
@@ -281,6 +282,22 @@ Nota operasi:
   waktu Malaysia) dengan tooltip dan jadual, dan senarai Pro hampir tamat atau dalam toleransi dengan butang **Ingatkan**
   yang membuka WhatsApp dengan mesej siap (`POST /api/admin/shops/:id/remind` merekod dalam audit log). Carta: `assets/js/chart.js`
   (SVG tanpa library; warna disahkan dengan validator dataviz).
+
+## Pusingan 2: Marketplace, SEO, kod QR
+
+- **Marketplace** `/marketplace` (statik + `GET /api/market`, awam). Indeks `market/index.json` dalam R2, dibina daripada D1:
+  bila tiada, bila luput (5 minit, dibina di latar), bila peniaga mengubah medan yang dipaparkan, bila admin bertindak,
+  dan bila status kedai berubah selepas tulisan kandungan (`syncMarketForShop` dalam `publishSnapshot`).
+  Kelayakan (`lib/market.js`): Pro automatik kecuali pilih keluar; Percuma perlu pilih masuk; semua perlu jenis kedai,
+  logo atau banner, sekurang-kurangnya 3 produk ada stok, tidak digantung dan tidak disembunyikan admin.
+  Susunan: Pilihan Admin, Pro, skor kelengkapan, kemas kini terkini. Jenis kedai: `SHOP_CATEGORIES` dalam `rules.js`.
+- **Tetapan**: kad Marketplace (jenis kedai, suis senaraikan, status dan senarai perkara belum lengkap).
+- **Admin**: butiran kedai, bahagian Marketplace: Sembunyikan / Papar semula, Pilihan Admin. Direkod dalam audit log.
+- **SEO**: `/sitemap.xml` (Function; halaman awam dan kedai yang tersenarai), `robots.txt` menunjuk ke sitemap, dan
+  JSON-LD schema.org `Store` pada setiap halaman kedai (nama, URL, penerangan, gambar, peta, media sosial).
+- **Kod QR** (`#/qr`, `assets/js/qr.js`): dijana dalam browser dengan `assets/vendor/qrcode-generator-2.0.4.js`
+  (MIT, Kazuhiko Arase), muat turun PNG, poster A5 dengan logo kedai (logo perlu CORS pada domain media; jika tiada,
+  poster dijana tanpa logo) dan butang cetak.
 
 ## Gambar: cropper
 

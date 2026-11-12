@@ -1650,6 +1650,105 @@ test('S-16b Statistik admin: jubin, dua carta bar dengan tooltip dan jadual, sen
   await context.close();
 });
 
+
+// ================================================================ Pusingan 2
+
+test('Marketplace: syarat di Tetapan, kedai Pro lengkap tersenarai, carian dan tapisan; Pilihan Admin; sitemap dan JSON-LD', async () => {
+  const post = (path, body, tok = TOKEN_F) => fetch(`${BASE}${path}`, { method: 'POST', headers: { Cookie: `__Host-sid=${tok}`, Origin: BASE, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const { context, page } = await newPage({ sid: TOKEN_F });
+  await page.goto(`${BASE}/app/#/tetapan`);
+  await page.getByRole('heading', { name: 'Marketplace' }).waitFor();
+  assert.equal(await page.getByRole('switch', { name: /Senaraikan kedai saya di Marketplace/ }).isChecked(), true, 'Pro: lalai disenaraikan');
+  await page.locator('.issue-list', { hasText: 'Pilih jenis kedai.' }).waitFor();
+  await page.getByLabel('Jenis kedai').selectOption('gajet');
+  await page.getByRole('button', { name: 'Simpan perubahan' }).click();
+  await page.getByText('Tetapan disimpan.').waitFor();
+  await page.locator('.issue-list', { hasText: 'Sekurang-kurangnya 3 produk' }).waitFor();
+
+  for (const [n, sen] of [['Kabel USB-C', 1500], ['Pengecas 20W', 3900], ['Pelindung skrin', 1200]]) {
+    assert.equal((await post('/api/products', { name: n, priceSen: sen })).status, 201);
+  }
+  await page.reload();
+  await page.getByText('Kedai anda dipaparkan di Marketplace.').waitFor();
+  await shot(page, '20-tetapan-marketplace');
+
+  await page.goto(`${BASE}/marketplace`);
+  const card = page.locator('.market-card', { hasText: 'Kedai Bayar' });
+  await card.waitFor();
+  assert.equal(await card.locator('a').getAttribute('href'), '/kedai-bayar');
+  await card.getByText('Gajet dan elektronik').waitFor();
+  await page.getByLabel('Cari kedai').fill('tiada-padanan-xyz');
+  await page.locator('#market-empty').waitFor();
+  await page.getByLabel('Cari kedai').fill('');
+  await page.getByRole('button', { name: 'Gajet dan elektronik' }).click();
+  await card.waitFor();
+  await noHorizontalScroll(page);
+  await revealAll(page);
+  await shot(page, '21-marketplace');
+  await context.close();
+
+  // Superadmin jadikan Pilihan Admin: lencana "Pilihan" di Marketplace.
+  const me = (await apiGet('/api/me', TOKEN_F)).json.shop;
+  const r = await fetch(`${BASE}/api/admin/shops/${me.id}`, { method: 'PATCH', headers: { Cookie: `__Host-sid=${TOKEN_M}`, Origin: BASE, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'market_feature' }) });
+  assert.equal(r.status, 200);
+  const m2 = await newPage();
+  await m2.page.goto(`${BASE}/marketplace`);
+  await m2.page.locator('.market-card', { hasText: 'Kedai Bayar' }).locator('.market-flag', { hasText: 'Pilihan' }).waitFor();
+  await m2.context.close();
+
+  const sm = await fetch(`${BASE}/sitemap.xml`);
+  assert.equal(sm.status, 200);
+  assert.ok((await sm.text()).includes(`<loc>${BASE}/kedai-bayar</loc>`));
+  const html = await (await fetch(`${BASE}/kedai-bayar`)).text();
+  const ld = JSON.parse(/<script type="application\/ld\+json">([^<]*)<\/script>/.exec(html)[1]);
+  assert.equal(ld['@type'], 'Store');
+  assert.equal(ld.name, 'Kedai Bayar');
+  assert.ok(ld.sameAs.includes('https://www.instagram.com/kedaibayar/'));
+});
+
+test('Kod QR: QR boleh diimbas ke link kedai, muat turun PNG, poster A5', async () => {
+  const { context, page } = await newPage({ sid: TOKEN_F });
+  await page.goto(`${BASE}/app/`);
+  await page.getByRole('link', { name: 'Kod QR dan poster kedai' }).click();
+  await page.getByRole('heading', { level: 1, name: 'Kod QR kedai' }).waitFor();
+  const canvas = page.locator('canvas.qr-canvas');
+  await canvas.waitFor();
+  assert.equal(await canvas.getAttribute('aria-label'), `Kod QR ke ${BASE}/kedai-bayar`);
+  // Isi QR disahkan: matriks dijana semula daripada library yang sama mesti sama dengan piksel kanvas.
+  const ok = await page.evaluate(async (url) => {
+    const { default: qrcode } = await import('/assets/vendor/qrcode-generator-2.0.4.js');
+    const q = qrcode(0, 'M');
+    q.addData(url);
+    q.make();
+    const n = q.getModuleCount();
+    const c = document.querySelector('canvas.qr-canvas');
+    const cell = c.width / (n + 8);
+    const px = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    for (let r = 0; r < n; r++) {
+      for (let col = 0; col < n; col++) {
+        const x = Math.floor((col + 4 + 0.5) * cell);
+        const y = Math.floor((r + 4 + 0.5) * cell);
+        const dark = px[(y * c.width + x) * 4] < 128;
+        if (dark !== q.isDark(r, col)) return false;
+      }
+    }
+    return true;
+  }, `${BASE}/kedai-bayar`);
+  assert.equal(ok, true, 'piksel QR sepadan dengan link kedai');
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Muat turun kod QR (PNG)' }).click()]);
+  assert.equal(dl.suggestedFilename(), 'qr-kedai-bayar.png');
+  const png = readFileSync(await dl.path());
+  assert.deepEqual([...png.subarray(1, 4)], [0x50, 0x4e, 0x47], 'fail PNG');
+  const poster = page.locator('.qr-poster-preview');
+  await poster.waitFor();
+  assert.match(await poster.getAttribute('src'), /^data:image\/png;base64,/);
+  const [dl2] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Muat turun poster A5 (PNG)' }).click()]);
+  assert.equal(dl2.suggestedFilename(), 'poster-qr-kedai-bayar.png');
+  await noHorizontalScroll(page);
+  await shot(page, '22-kod-qr');
+  await context.close();
+});
+
 // ================================================================ Tema dan PWA
 
 // Nisbah kontras WCAG antara warna teks dan latar sebenar (naik ke ibu bapa sehingga jumpa latar legap).

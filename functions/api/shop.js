@@ -5,12 +5,16 @@
 //   DELETE padam kedai, semua baris D1 dan objek R2 (F-15, PDPA); body { confirmSlug }
 
 import { applyUnmatchedForShop } from '../../lib/bcl.js';
+import { buildMarketIndex } from '../../lib/market.js';
 import { fail, failFields, json, readJson } from '../../lib/http.js';
 import { columnFor, validateShopInput } from '../../lib/validate.js';
 import { getShopByOwner, ownerShop, shopResponseData } from '../../lib/shop.js';
 import { CATALOG_FAIL, publishSnapshot, snapshotKey } from '../../lib/catalog.js';
 import { deleteShopObjects } from '../../lib/media.js';
 import { DEFAULT_THEME, LIMITS, MSG as RULE_MSG, isReservedLocally, validateTemplate } from '../../public/assets/js/rules.js';
+
+// Medan kedai yang dipaparkan di Marketplace: bila berubah, indeks dibina semula serta-merta.
+const MARKET_FIELDS = new Set(['category', 'marketOpt', 'name', 'slug', 'description', 'isOpen']);
 
 const BODY_ERROR = 'Format permintaan tidak sah.';
 
@@ -154,6 +158,11 @@ export async function onRequestPatch({ request, env, data }) {
   // Snapshot baharu; jika slug ditukar, snapshot slug lama dipadam (slug lama tak dikekalkan).
   if (!(await publishSnapshot(env, shop.id, { oldSlug: renaming ? shop.slug : null }))) {
     return fail(500, CATALOG_FAIL.code, CATALOG_FAIL.message);
+  }
+
+  // Medan yang dipaparkan di Marketplace berubah: bina semula indeks supaya peniaga nampak kesan segera.
+  if (keys.some((k) => MARKET_FIELDS.has(k))) {
+    await buildMarketIndex(env).catch((err) => console.error('Bina indeks marketplace gagal', err && err.message ? err.message : err));
   }
 
   const r = await shopResponseData(env, data.user);

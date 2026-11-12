@@ -2,12 +2,22 @@
 //   GET    butiran kedai, pemilik, penggunaan, bayaran, audit log
 //   PATCH  { action: 'set_plan', planCode, expiresAt } | { action: 'add_months', months }
 //          | { action: 'suspend', reason } | { action: 'unsuspend' }
+//          | { action: 'market_hide' | 'market_show' | 'market_feature' | 'market_unfeature' }
 
 import { fail, json, readJson } from '../../../../lib/http.js';
 import { audit, getShopForAdmin, paymentToApi, shopRow } from '../../../../lib/admin.js';
 import { extendExpiry, isIsoDate } from '../../../../lib/subscription.js';
 import { CATALOG_FAIL, publishSnapshot } from '../../../../lib/catalog.js';
 import { cleanText } from '../../../../public/assets/js/rules.js';
+import { buildMarketIndex, marketStatusFor } from '../../../../lib/market.js';
+import { effectivePlanCode } from '../../../../lib/plan.js';
+
+const MARKET_ACTIONS = {
+  market_hide: ['market_hidden', 1],
+  market_show: ['market_hidden', 0],
+  market_feature: ['market_featured', 1],
+  market_unfeature: ['market_featured', 0],
+};
 
 const notFound = () => fail(404, 'kedai-tiada', 'Kedai tak dijumpai.');
 
@@ -34,6 +44,8 @@ async function detail(env, id) {
       ownerName: s.owner_name,
       ownerLastLogin: s.owner_last_login,
       updatedAt: s.updated_at,
+      category: s.category || '',
+      market: await marketStatusFor(env, s, effectivePlanCode(s, env) !== 'free'),
     },
     payments: payments.results.map(paymentToApi),
     audit: log.results.map((a) => ({ id: a.id, actor: a.actor_email, action: a.action, meta: a.meta ? JSON.parse(a.meta) : null, createdAt: a.created_at })),
@@ -99,6 +111,16 @@ export async function onRequestPatch({ request, env, data, params }) {
       await db.prepare("UPDATE shops SET status = 'active', suspended_reason = NULL, updated_at = datetime('now') WHERE id = ?1").bind(shop.id).run();
       await audit(db, actor, 'unsuspend', shop.id, { previousReason: shop.suspended_reason });
       break;
+    }
+    case 'market_hide':
+    case 'market_show':
+    case 'market_feature':
+    case 'market_unfeature': {
+      const [col, val] = MARKET_ACTIONS[body.action];
+      await db.prepare(`UPDATE shops SET ${col} = ?1 WHERE id = ?2`).bind(val, shop.id).run();
+      await audit(db, actor, body.action, shop.id, {});
+      await buildMarketIndex(env);
+      return json(await detail(env, shop.id));
     }
     default:
       return fail(400, 'tindakan-tak-sah', 'Tindakan tak dikenali.');

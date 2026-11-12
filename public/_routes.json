@@ -25,6 +25,8 @@
     "/sw.js",
     "/manifest.webmanifest",
     "/offline.html",
-    "/offline"
+    "/offline",
+    "/marketplace",
+    "/marketplace.html"
   ]
 }

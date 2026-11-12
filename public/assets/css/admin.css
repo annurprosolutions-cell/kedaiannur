@@ -66,3 +66,4 @@
 .remind-info { display: grid; gap: 4px; min-width: 0; }
 .remind-name { overflow-wrap: anywhere; }
 .remind-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
+.issue-list { margin: 0; padding-left: 20px; }

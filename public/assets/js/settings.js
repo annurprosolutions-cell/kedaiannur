@@ -10,7 +10,7 @@ import { compressBitmap, readImage, releaseImage, ImageError } from './image.js'
 import { openCropper } from './cropper.js';
 import {
   LIMITS, MSG, TEMPLATE_PLACEHOLDERS, cleanText, formatWhatsapp, isReservedLocally, normalizeHours, normalizeMapsUrl, normalizeSlug,
-  normalizeSocial, normalizeWhatsapp, slugFormatIssue, validateTemplate,
+  normalizeSocial, normalizeWhatsapp, slugFormatIssue, validateTemplate, SHOP_CATEGORIES, MARKET_MIN_PRODUCTS,
 } from './rules.js';
 import { addToCart, buildMessage, emptyCart, summarize } from './order.js';
 
@@ -94,6 +94,36 @@ export function viewSettings(ctx) {
       ['facebook', fbIn, fbF, (v) => normalizeSocial('facebook', v), shop.facebook || ''],
     ];
 
+    // ------------------------------------------------ Marketplace (jenis kedai dan pilihan disenaraikan)
+    const market = shop.market || { listed: false, issues: [], defaultOn: false };
+    const catSel = h(
+      'select',
+      { class: 'input' },
+      h('option', { value: '' }, 'Pilih jenis kedai'),
+      SHOP_CATEGORIES.map((c) => h('option', { value: c.code, selected: c.code === shop.category }, c.name)),
+    );
+    const catF = field({ id: 's-cat', label: 'Jenis kedai', input: catSel, hint: 'Pembeli boleh tapis Marketplace ikut jenis kedai.' });
+    const marketOn = shop.marketOpt === null || shop.marketOpt === undefined ? market.defaultOn : shop.marketOpt;
+    const marketRow = switchRow({
+      id: 's-market',
+      title: 'Senaraikan kedai saya di Marketplace',
+      desc: shop.plan.code !== 'free' ? 'Pelan Pro disenaraikan secara automatik. Matikan jika tak mahu.' : 'Pilihan untuk pelan Percuma. Pelan Pro disenaraikan secara automatik.',
+      checked: marketOn,
+      onChange: () => refresh(),
+    });
+    const marketStatus = h(
+      'div',
+      { class: market.listed ? 'notice notice-success' : 'notice notice-info', role: 'status' },
+      market.listed
+        ? h('p', { class: 'm0' }, 'Kedai anda dipaparkan di Marketplace.')
+        : h(
+            'div',
+            {},
+            h('p', { class: 'm0' }, market.wants ? 'Belum dipaparkan. Lengkapkan perkara ini dahulu:' : 'Kedai anda tidak dipaparkan di Marketplace.'),
+            market.wants && market.issues.length ? h('ul', { class: 'issue-list' }, market.issues.map((t) => h('li', {}, t))) : null,
+          ),
+    );
+
     // ------------------------------------------------ warna dan paparan
     const sw = swatches(shop.themeColor, () => refresh());
     const openRow = switchRow({ id: 's-open', title: 'Kedai sedang buka', desc: 'Bila ditutup, pelanggan nampak kedai tapi tak boleh hantar order.', checked: shop.isOpen, onChange: () => refresh() });
@@ -174,6 +204,8 @@ export function viewSettings(ctx) {
 
     function collect() {
       const diff = {};
+      if (catSel.value !== (shop.category || '')) diff.category = catSel.value;
+      if (marketRow.input.checked !== marketOn) diff.marketOpt = marketRow.input.checked;
       for (const [key, input, , norm, current] of contact) {
         const r = norm(input.value);
         const next = r.error ? input.value.trim() : r.value;
@@ -265,6 +297,10 @@ export function viewSettings(ctx) {
       waF.msg('');
       refresh();
     });
+    catSel.addEventListener('change', () => {
+      catF.msg('');
+      refresh();
+    });
     for (const [, input, f] of contact) {
       input.addEventListener('input', () => {
         f.msg('');
@@ -324,6 +360,7 @@ export function viewSettings(ctx) {
           if (err.fields.description) descF.msg(err.fields.description);
           if (err.fields.messageTemplate) tplF.msg(err.fields.messageTemplate);
           for (const [key, , f] of contact) if (err.fields[key]) f.msg(err.fields[key]);
+          if (err.fields.category) catF.msg(err.fields.category);
         }
         toast(err.message, 'error');
         refresh();
@@ -546,6 +583,16 @@ export function viewSettings(ctx) {
         igF.el,
         ttF.el,
         fbF.el,
+      ),
+      h(
+        'section',
+        { class: 'card stack' },
+        h('h2', {}, 'Marketplace'),
+        h('p', { class: 'caption' }, `Marketplace menyenaraikan kedai di kedai.annurpro.com/marketplace. Syarat: jenis kedai dipilih, ada logo atau banner, dan sekurang-kurangnya ${MARKET_MIN_PRODUCTS} produk yang ada stok.`),
+        catF.el,
+        h('div', { class: 'switch-list' }, marketRow.el),
+        marketStatus,
+        h('a', { class: 'btn btn-secondary btn-sm', href: '/marketplace', target: '_blank', rel: 'noopener' }, icon('luar'), h('span', {}, 'Lihat Marketplace')),
       ),
       h(
         'section',
