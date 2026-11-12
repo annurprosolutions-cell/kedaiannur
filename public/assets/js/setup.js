@@ -266,7 +266,7 @@ export function viewSetup(ctx) {
         'div',
         { class: 'stack-sm' },
         h('h3', {}, 'Banner kedai (pilihan)'),
-        h('p', { class: 'caption' }, 'Gambar di atas halaman kedai, nisbah 2:1. Dimampatkan automatik. Boleh langkau dan tambah kemudian.'),
+        h('p', { class: 'caption' }, 'Gambar di atas halaman kedai. Saiz terbaik 1600 x 800 piksel (nisbah 2:1); anda boleh potong selepas memilih. Boleh langkau dan tambah kemudian.'),
         fileIn,
         pickBtn,
         previewWrap,

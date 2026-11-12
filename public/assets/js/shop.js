@@ -5,7 +5,7 @@
 // Semua teks kedai dan produk melalui textContent (h()), tak pernah innerHTML.
 
 import { h, icon, toast } from './ui.js';
-import { DEFAULT_THEME, formatSen, isReservedLocally, isThemeColor, normalizeSlug, slugFormatError } from './rules.js';
+import { DEFAULT_THEME, formatSen, isMapsUrl, isReservedLocally, isThemeColor, normalizeSlug, slugFormatError, socialUrl } from './rules.js';
 import {
   ORDER_LIMITS, addToCart, buildMessage, loadCart, reconcile, removeLine, saveCart, setNote, setQty, summarize, waLink,
 } from './order.js';
@@ -88,6 +88,32 @@ async function boot() {
 
 // Satu banner: gambar biasa. Lebih satu (Pro, sehingga 5): karusel scroll-snap yang berputar setiap 5 saat,
 // boleh disapu, berhenti bila disentuh, dan tak berputar sendiri jika pengguna memilih kurangkan animasi.
+// Waktu operasi, lokasi dan media sosial kedai (snapshot shop.info). Pautan dibina di sini daripada nama akaun,
+// dan pautan Maps disemak semula, jadi snapshot tak boleh membawa pelanggan ke laman lain.
+function infoBlock(info) {
+  const links = [];
+  if (info.maps && isMapsUrl(info.maps)) links.push(['lokasi', 'Lokasi', info.maps]);
+  for (const [key, kind, label] of [['ig', 'instagram', 'Instagram'], ['tt', 'tiktok', 'TikTok'], ['fb', 'facebook', 'Facebook']]) {
+    const url = info[key] ? socialUrl(kind, info[key]) : '';
+    if (url) links.push([kind, label, url]);
+  }
+  if (!info.hours && !links.length) return null;
+  return h(
+    'div',
+    { class: 'shop-info' },
+    info.hours ? h('p', { class: 'shop-hours' }, icon('jam'), h('span', {}, info.hours)) : null,
+    links.length
+      ? h(
+          'div',
+          { class: 'shop-links', role: 'list' },
+          links.map(([ic, label, href]) =>
+            h('a', { class: 'shop-link-btn', href, target: '_blank', rel: 'noopener', role: 'listitem', 'aria-label': `${label} (tetingkap baharu)` }, icon(ic), h('span', {}, label)),
+          ),
+        )
+      : null,
+  );
+}
+
 function bannerBlock(urls, alt) {
   if (!urls.length) return null;
   const img = (src, i) =>
@@ -199,6 +225,7 @@ function start(page) {
         h('h1', {}, shop.name),
       ),
       shop.desc ? h('p', { class: 'shop-desc muted' }, shop.desc) : null,
+      infoBlock(shop.info || {}),
       open ? null : h('p', { class: 'notice notice-warning', role: 'status' }, 'Kedai sedang tutup. Order tak dapat dihantar buat masa ini.'),
     ),
   );

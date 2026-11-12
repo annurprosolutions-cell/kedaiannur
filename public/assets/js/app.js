@@ -48,10 +48,9 @@ function brand() {
   return h('span', { class: 'brand' }, logoSvg(), h('span', {}, 'Kedai AnnurPro'));
 }
 
+// Simbol jenama AnnurPro (scripts/make-icons.js).
 function logoSvg() {
-  const wrap = icon('kedai');
-  wrap.setAttribute('stroke', 'var(--primary)');
-  return wrap;
+  return h('img', { class: 'brand-mark', src: '/assets/brand/annurpro-mark-64.webp', alt: '', width: 28, height: 28 });
 }
 
 // Ralat API biasa: 401 bermaksud sesi tamat, kembali ke skrin login.
@@ -276,11 +275,29 @@ function shopUrl(shop) {
   return `${location.origin}/${shop.slug}`;
 }
 
+// Langkah "Kongsi link" dalam senarai semak: tiada cara mengesan perkongsian di server, jadi ditanda dalam peranti ini.
+const SHARED_KEY = (shop) => `kedai-dikongsi-${shop.id}`;
+function markShared(shop) {
+  try {
+    window.localStorage.setItem(SHARED_KEY(shop), '1');
+  } catch {
+    /* storan disekat */
+  }
+}
+function wasShared(shop) {
+  try {
+    return window.localStorage.getItem(SHARED_KEY(shop)) === '1';
+  } catch {
+    return false;
+  }
+}
+
 // F-09: salin link, kongsi ke WhatsApp dan buka kedai, satu sentuhan setiap satu.
 function shareActions(shop) {
   const url = shopUrl(shop);
   const copy = h('button', { type: 'button', class: 'btn btn-secondary' }, icon('salin'), h('span', {}, 'Salin link'));
   copy.addEventListener('click', async () => {
+    markShared(shop);
     try {
       await navigator.clipboard.writeText(url);
       toast('Link disalin.', 'success');
@@ -293,8 +310,40 @@ function shareActions(shop) {
     'div',
     { class: 'share-row' },
     copy,
-    h('a', { class: 'btn btn-wa', href: `https://wa.me/?text=${encodeURIComponent(text)}`, target: '_blank', rel: 'noopener' }, icon('whatsapp'), h('span', {}, 'Kongsi')),
+    h('a', { class: 'btn btn-wa', href: `https://wa.me/?text=${encodeURIComponent(text)}`, target: '_blank', rel: 'noopener', onclick: () => markShared(shop) }, icon('whatsapp'), h('span', {}, 'Kongsi')),
     h('a', { class: 'btn btn-secondary', href: url, target: '_blank', rel: 'noopener' }, icon('luar'), h('span', {}, 'Buka kedai')),
+  );
+}
+
+// Senarai semak "Lengkapkan kedai": langkah yang membuat kedai sedia dikongsi. Hilang bila semua siap.
+function setupChecklist(shop, usage) {
+  const steps = [
+    ['Muat naik logo', Boolean(shop.logoKey), '#/tetapan'],
+    ['Letak banner', usage.banners > 0, '#/tetapan'],
+    ['Tambah sekurang-kurangnya 3 produk', usage.products >= 3, '#/produk/baru'],
+    ['Tulis penerangan kedai', Boolean(shop.hasDescription), '#/tetapan'],
+    ['Isi waktu operasi, lokasi atau media sosial', Boolean(shop.hasContact), '#/tetapan'],
+    ['Kongsi link kedai kepada pelanggan', wasShared(shop), null],
+  ];
+  const done = steps.filter((s) => s[1]).length;
+  if (done === steps.length) return null;
+  return h(
+    'section',
+    { class: 'card stack-sm checklist', 'aria-labelledby': 'cl-title' },
+    h('div', { class: 'meter-head' }, h('h2', { id: 'cl-title' }, 'Lengkapkan kedai anda'), h('span', {}, `${done}/${steps.length}`)),
+    h('div', { class: 'meter-bar', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(steps.length), 'aria-valuenow': String(done), 'aria-label': 'Kemajuan setup kedai' }, h('span', { style: `width:${Math.round((done / steps.length) * 100)}%` })),
+    h(
+      'ul',
+      { class: 'checklist-list' },
+      steps.map(([label, ok, href]) =>
+        h(
+          'li',
+          { class: ok ? 'is-done' : '' },
+          h('span', { class: 'check-dot', 'aria-hidden': 'true' }, ok ? icon('semak') : null),
+          ok || !href ? h('span', {}, label, ok ? h('span', { class: 'sr-only' }, ' (siap)') : null) : h('a', { href }, label),
+        ),
+      ),
+    ),
   );
 }
 
@@ -322,6 +371,7 @@ function viewDashboard() {
       h('p', { class: 'caption' }, shop.isOpen ? 'Kedai sedang buka.' : 'Kedai sedang tutup. Pelanggan tak boleh hantar order.'),
       shareActions(shop),
     ),
+    setupChecklist(shop, usage),
     usage.products === 0
       ? h(
           'section',

@@ -1559,6 +1559,97 @@ test('Logo: muat naik melalui cropper bulat; kedai papar logo; Pro guna logo seb
   }
 });
 
+
+// ================================================================ Pusingan 1
+
+test('Maklumat hubungan: diisi di Tetapan, dipaparkan di kedai dengan pautan selamat; senarai semak dashboard; templat banner', async () => {
+  const { context, page } = await newPage({ sid: TOKEN_F });
+  await page.goto(`${BASE}/app/`);
+  const checklist = page.locator('.checklist');
+  await checklist.waitFor();
+  const before = await checklist.locator('[role="progressbar"]').getAttribute('aria-valuenow');
+  await shot(page, '18-senarai-semak');
+
+  await page.goto(`${BASE}/app/#/tetapan`);
+  await page.getByRole('heading', { name: 'Waktu, lokasi dan media sosial' }).waitFor();
+  await page.getByLabel('Lokasi Google Maps').fill('https://evil.test/maps');
+  await page.getByRole('button', { name: 'Simpan perubahan' }).click();
+  await page.locator('#s-maps-msg', { hasText: 'Pautan Google Maps tak sah' }).waitFor();
+  await page.getByLabel('Waktu operasi').fill('Isnin hingga Sabtu\n9 pagi hingga 9 malam');
+  await page.getByLabel('Lokasi Google Maps').fill('maps.app.goo.gl/Ujian123');
+  await page.getByLabel('Instagram').fill('https://www.instagram.com/kedaibayar/');
+  await page.getByLabel('TikTok').fill('@kedai.bayar');
+  await page.getByRole('button', { name: 'Simpan perubahan' }).click();
+  await page.getByText('Tetapan disimpan.').waitFor();
+
+  // Panduan banner dan templat yang boleh dimuat turun.
+  const tpl = page.getByRole('link', { name: 'Muat turun templat banner' });
+  const href = await tpl.getAttribute('href');
+  assert.equal(await tpl.getAttribute('download'), 'templat-banner-kedai-1600x800.png');
+  const res = await fetch(`${BASE}${href}`);
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('content-type'), /image\/png/);
+  await page.getByText('Saiz terbaik 1600 x 800 piksel').waitFor();
+
+  await page.goto(`${BASE}/kedai-bayar`);
+  await page.locator('.shop-hours', { hasText: '9 pagi hingga 9 malam' }).waitFor();
+  const links = await page.locator('.shop-link-btn').evaluateAll((els) => els.map((a) => [a.textContent.trim(), a.getAttribute('href'), a.getAttribute('rel')]));
+  assert.deepEqual(links, [
+    ['Lokasi', 'https://maps.app.goo.gl/Ujian123', 'noopener'],
+    ['Instagram', 'https://www.instagram.com/kedaibayar/', 'noopener'],
+    ['TikTok', 'https://www.tiktok.com/@kedai.bayar', 'noopener'],
+  ]);
+  await touchTargets(page, '.shop-link-btn');
+  await noHorizontalScroll(page);
+  await shot(page, '19-kedai-hubungan');
+
+  // Senarai semak: maklumat hubungan kini siap; salin link menanda langkah kongsi.
+  await page.goto(`${BASE}/app/`);
+  await checklist.waitFor();
+  const after = await checklist.locator('[role="progressbar"]').getAttribute('aria-valuenow');
+  assert.equal(Number(after), Number(before) + 1, 'maklumat hubungan ditanda siap');
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.getByRole('button', { name: 'Salin link' }).click();
+  await page.reload();
+  await page.locator('.checklist li.is-done', { hasText: 'Kongsi link kedai' }).waitFor();
+  await context.close();
+});
+
+test('S-16b Statistik admin: jubin, dua carta bar dengan tooltip dan jadual, senarai Pro hampir tamat dengan pautan WhatsApp', async () => {
+  const { context, page } = await newPage({ width: 1280, height: 900, sid: TOKEN_M });
+  await page.goto(`${BASE}/admin/#/statistik`);
+  await page.getByRole('heading', { level: 1, name: 'Statistik' }).waitFor();
+  await page.locator('.tile', { hasText: 'Pro aktif' }).waitFor();
+  const charts = page.locator('.chart svg');
+  await charts.first().waitFor();
+  assert.equal(await charts.count(), 2);
+  assert.ok((await page.locator('.chart').first().locator('.chart-bar').count()) >= 1, 'kedai dicipta hari ini: sekurang-kurangnya satu bar');
+  const lastHit = page.locator('.chart').first().locator('.chart-hit').last();
+  await lastHit.hover();
+  const tip = page.locator('.chart-tip').first();
+  await tip.waitFor();
+  assert.match(await tip.textContent(), /^\d{2}\/\d{2}: \d+ kedai$/);
+  await page.locator('.chart-table summary').first().click();
+  assert.equal(await page.locator('.chart-table').first().locator('tbody tr').count(), 30);
+  await shot(page, '63-admin-statistik');
+
+  const wa = page.locator('.remind-item a.btn-wa');
+  if (await wa.count()) {
+    const href = await wa.first().getAttribute('href');
+    assert.match(href, /^https:\/\/wa\.me\/\d+\?text=/);
+    assert.match(decodeURIComponent(href), /Langganan Pro untuk kedai/);
+  } else {
+    await page.getByText('Tiada Pro yang tamat dalam 14 hari').waitFor();
+  }
+
+  const phone = await newPage({ sid: TOKEN_M });
+  await phone.page.goto(`${BASE}/admin/#/statistik`);
+  await phone.page.locator('.chart svg').first().waitFor();
+  await noHorizontalScroll(phone.page);
+  await phone.context.close();
+  await context.close();
+});
+
 // ================================================================ Tema dan PWA
 
 // Nisbah kontras WCAG antara warna teks dan latar sebenar (naik ke ibu bapa sehingga jumpa latar legap).

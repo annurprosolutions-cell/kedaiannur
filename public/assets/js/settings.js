@@ -9,8 +9,8 @@ import { field, textArea, textInput, switchRow, swatches, formatBytes } from './
 import { compressBitmap, readImage, releaseImage, ImageError } from './image.js';
 import { openCropper } from './cropper.js';
 import {
-  LIMITS, MSG, TEMPLATE_PLACEHOLDERS, cleanText, formatWhatsapp, isReservedLocally, normalizeSlug, normalizeWhatsapp,
-  slugFormatIssue, validateTemplate,
+  LIMITS, MSG, TEMPLATE_PLACEHOLDERS, cleanText, formatWhatsapp, isReservedLocally, normalizeHours, normalizeMapsUrl, normalizeSlug,
+  normalizeSocial, normalizeWhatsapp, slugFormatIssue, validateTemplate,
 } from './rules.js';
 import { addToCart, buildMessage, emptyCart, summarize } from './order.js';
 
@@ -67,6 +67,32 @@ export function viewSettings(ctx) {
     const descIn = textArea({ maxlength: LIMITS.descMax, placeholder: 'Contoh: Kuih tradisional, buat atas tempahan.' });
     descIn.value = shop.description;
     const descF = field({ id: 's-desc', label: 'Penerangan ringkas', input: descIn, hint: `${shop.description.length}/${LIMITS.descMax}` });
+
+    // ------------------------------------------------ maklumat hubungan (waktu, lokasi, media sosial)
+    const hoursIn = textArea({ rows: 2, maxlength: LIMITS.hoursMax, placeholder: 'Contoh: Isnin hingga Jumaat, 9 pagi hingga 6 petang' });
+    hoursIn.value = shop.openingHours || '';
+    const hoursF = field({ id: 's-hours', label: 'Waktu operasi', input: hoursIn, hint: 'Pilihan. Dipaparkan di bawah nama kedai.' });
+    const urlInput = (placeholder) => textInput({ inputmode: 'url', autocapitalize: 'none', autocomplete: 'off', spellcheck: 'false', placeholder });
+    const mapsIn = urlInput('https://maps.app.goo.gl/...');
+    mapsIn.value = shop.mapsUrl || '';
+    const mapsF = field({ id: 's-maps', label: 'Lokasi Google Maps', input: mapsIn, hint: 'Dalam Google Maps: cari kedai anda, tekan Kongsi, kemudian salin pautan.' });
+    const igIn = urlInput('@namakedai');
+    igIn.value = shop.instagram ? `@${shop.instagram}` : '';
+    const igF = field({ id: 's-ig', label: 'Instagram', input: igIn });
+    const ttIn = urlInput('@namakedai');
+    ttIn.value = shop.tiktok ? `@${shop.tiktok}` : '';
+    const ttF = field({ id: 's-tt', label: 'TikTok', input: ttIn });
+    const fbIn = urlInput('namakedai atau pautan halaman');
+    fbIn.value = shop.facebook || '';
+    const fbF = field({ id: 's-fb', label: 'Facebook', input: fbIn });
+    // [kunci API, input, medan, penormal, nilai semasa]
+    const contact = [
+      ['openingHours', hoursIn, hoursF, normalizeHours, shop.openingHours || ''],
+      ['mapsUrl', mapsIn, mapsF, normalizeMapsUrl, shop.mapsUrl || ''],
+      ['instagram', igIn, igF, (v) => normalizeSocial('instagram', v), shop.instagram || ''],
+      ['tiktok', ttIn, ttF, (v) => normalizeSocial('tiktok', v), shop.tiktok || ''],
+      ['facebook', fbIn, fbF, (v) => normalizeSocial('facebook', v), shop.facebook || ''],
+    ];
 
     // ------------------------------------------------ warna dan paparan
     const sw = swatches(shop.themeColor, () => refresh());
@@ -148,6 +174,11 @@ export function viewSettings(ctx) {
 
     function collect() {
       const diff = {};
+      for (const [key, input, , norm, current] of contact) {
+        const r = norm(input.value);
+        const next = r.error ? input.value.trim() : r.value;
+        if (next !== current) diff[key] = input.value;
+      }
       const name = cleanText(nameIn.value);
       if (name !== shop.name) diff.name = name;
       const slug = normalizeSlug(slugIn.value);
@@ -234,6 +265,12 @@ export function viewSettings(ctx) {
       waF.msg('');
       refresh();
     });
+    for (const [, input, f] of contact) {
+      input.addEventListener('input', () => {
+        f.msg('');
+        refresh();
+      });
+    }
     descIn.addEventListener('input', () => {
       descF.hint(`${descIn.value.length}/${LIMITS.descMax}`);
       refresh();
@@ -248,6 +285,14 @@ export function viewSettings(ctx) {
         const t = validateTemplate(diff.messageTemplate);
         if (t.error) errors.messageTemplate = t.error;
         else diff.messageTemplate = t.value;
+      }
+      for (const [key, , f, norm] of contact) {
+        if (!(key in diff)) continue;
+        const r = norm(diff[key]);
+        if (r.error) {
+          errors[key] = r.error;
+          f.msg(r.error);
+        }
       }
       if (errors.messageTemplate) tplF.msg(errors.messageTemplate);
       if (errors.name) nameF.msg(errors.name);
@@ -278,6 +323,7 @@ export function viewSettings(ctx) {
           if (err.fields.whatsapp) waF.msg(err.fields.whatsapp);
           if (err.fields.description) descF.msg(err.fields.description);
           if (err.fields.messageTemplate) tplF.msg(err.fields.messageTemplate);
+          for (const [key, , f] of contact) if (err.fields[key]) f.msg(err.fields[key]);
         }
         toast(err.message, 'error');
         refresh();
@@ -417,8 +463,8 @@ export function viewSettings(ctx) {
       'p',
       { class: 'caption' },
       isPro
-        ? 'Dipaparkan di atas kedai dan dalam pratonton link WhatsApp. Pelan Pro: logo juga menjadi ikon tab dan ikon skrin utama kedai anda.'
-        : 'Dipaparkan di atas kedai dan dalam pratonton link WhatsApp. Pelan Pro: logo juga menjadi ikon tab dan ikon skrin utama kedai.',
+        ? 'Saiz terbaik 512 x 512 piksel, segi empat. Dipaparkan dalam bulatan di atas kedai dan dalam pratonton link WhatsApp. Pelan Pro: logo juga menjadi ikon tab dan ikon skrin utama kedai anda.'
+        : 'Saiz terbaik 512 x 512 piksel, segi empat. Dipaparkan dalam bulatan di atas kedai dan dalam pratonton link WhatsApp. Pelan Pro: logo juga menjadi ikon tab dan ikon skrin utama kedai.',
     );
     const setLogoMsg = (text, kind = 'error') => {
       logoMsg.textContent = text || '';
@@ -493,6 +539,17 @@ export function viewSettings(ctx) {
       h(
         'section',
         { class: 'card stack' },
+        h('h2', {}, 'Waktu, lokasi dan media sosial'),
+        h('p', { class: 'caption' }, 'Semua pilihan. Yang diisi sahaja dipaparkan di halaman kedai.'),
+        hoursF.el,
+        mapsF.el,
+        igF.el,
+        ttF.el,
+        fbF.el,
+      ),
+      h(
+        'section',
+        { class: 'card stack' },
         h('h2', {}, 'Warna dan paparan'),
         h('div', { class: 'stack-sm' }, h('h3', {}, 'Warna tema'), sw.el),
         h('div', { class: 'switch-list' }, openRow.el, nameRow.el, addrRow.el),
@@ -507,7 +564,17 @@ export function viewSettings(ctx) {
         logoNote,
         logoMsg,
       ),
-      h('section', { class: 'card stack' }, h('h2', {}, 'Banner'), bannerList, bannerNote, bannerStorage, fileIn, addBtn, upgrade, bannerMsg),
+      h(
+        'section',
+        { class: 'card stack' },
+        h('h2', {}, 'Banner'),
+        h(
+          'div',
+          { class: 'guide stack-sm' },
+          h('p', { class: 'caption' }, 'Saiz terbaik 1600 x 800 piksel (nisbah 2:1). Letak tajuk dan teks penting di tengah; bahagian bawah kiri dilindungi logo kedai jika ada.'),
+          h('a', { class: 'btn btn-secondary btn-sm', href: '/assets/templates/templat-banner-1600x800.png', download: 'templat-banner-kedai-1600x800.png' }, icon('gambar'), h('span', {}, 'Muat turun templat banner')),
+        ),
+        bannerList, bannerNote, bannerStorage, fileIn, addBtn, upgrade, bannerMsg),
     );
   }
 

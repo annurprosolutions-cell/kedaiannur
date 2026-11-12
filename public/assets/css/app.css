@@ -161,3 +161,16 @@ html { overscroll-behavior-y: none; }
 .logo-row { display: grid; grid-template-columns: 88px 1fr; gap: var(--s3); align-items: center; }
 .logo-preview { width: 88px; height: 88px; border-radius: 50%; object-fit: cover; background: var(--border); display: flex; align-items: center; justify-content: center; color: var(--muted); }
 .logo-preview svg { width: 32px; height: 32px; }
+
+.brand-mark { width: 28px; height: 28px; flex: none; object-fit: contain; }
+.login-card .brand .brand-mark { width: 40px; height: 40px; }
+
+/* ---- Senarai semak setup ---- */
+.checklist h2 { margin: 0; font-size: 18px; }
+.checklist-list { list-style: none; margin: var(--s2) 0 0; padding: 0; display: grid; gap: 2px; }
+.checklist-list li { display: flex; align-items: center; gap: var(--s3); min-height: 44px; }
+.checklist-list a { font-weight: 600; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; }
+.checklist-list li.is-done { color: var(--muted); text-decoration: line-through; }
+.check-dot { flex: none; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border); display: inline-flex; align-items: center; justify-content: center; }
+.is-done .check-dot { background: var(--success); border-color: var(--success); color: #fff; }
+.check-dot svg { width: 14px; height: 14px; stroke-width: 3; }

@@ -141,3 +141,14 @@ body.sheet-open { overflow: hidden; }
 }
 .banner-dot::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 255, 255, 0.6); box-shadow: 0 0 2px rgba(0, 0, 0, 0.5); }
 .banner-dot[aria-current="true"]::after { background: #fff; width: 20px; border-radius: 4px; }
+
+/* ---- Maklumat hubungan kedai ---- */
+.shop-info { display: grid; gap: var(--s2); margin-bottom: var(--s3); }
+.shop-hours { display: flex; gap: var(--s2); align-items: flex-start; margin: 0; color: var(--muted); white-space: pre-line; overflow-wrap: anywhere; }
+.shop-hours svg { width: 18px; height: 18px; flex: none; margin-top: 2px; }
+.shop-links { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.shop-link-btn {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text); text-decoration: none; font-weight: 600; font-size: 14px;
+}
+.shop-link-btn svg { width: 18px; height: 18px; color: var(--theme, var(--primary)); }

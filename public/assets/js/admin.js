@@ -8,6 +8,7 @@ import { renderGoogleButton, googleSignOut } from './google.js';
 import { formatBytes } from './forms.js';
 import { formatSen } from './rules.js';
 import { formatDate } from './plannotice.js';
+import { barChart } from './chart.js';
 
 const root = document.getElementById('admin');
 let me = null;
@@ -18,6 +19,7 @@ const ACTION_LABEL = {
   set_plan: 'Tetapkan pelan', add_months: 'Tambah bulan', suspend: 'Gantung', unsuspend: 'Buka gantung',
   match_payment: 'Padankan bayaran', rename_slug: 'Tukar slug', rebuild_catalogs: 'Bina semula katalog',
   add_reserved_slug: 'Tambah slug reserved', remove_reserved_slug: 'Buang slug reserved',
+  remind: 'Peringatan WhatsApp', bcl_payment: 'Bayaran BCL', apply_unmatched: 'Bayaran awal diterapkan',
 };
 
 const planBadge = (st) => h('span', { class: STATE_CLASS[st.state] || 'badge' }, STATE_LABEL[st.state] || st.state);
@@ -113,10 +115,10 @@ function shell(active, content) {
       h(
         'header',
         { class: 'app-header' },
-        h('a', { class: 'brand', href: '#/' }, icon('kedai'), h('span', {}, 'Superadmin')),
+        h('a', { class: 'brand', href: '#/' }, h('img', { class: 'brand-mark', src: '/assets/brand/annurpro-mark-64.webp', alt: '', width: 28, height: 28 }), h('span', {}, 'Superadmin')),
         h('span', { class: 'admin-user caption' }, me.user.email, h('button', { type: 'button', class: 'btn btn-secondary btn-sm', onclick: logout }, 'Log keluar')),
       ),
-      h('nav', { class: 'admin-tabs', 'aria-label': 'Navigasi superadmin' }, tab('#/', 'Kedai', 'kedai'), tab('#/selenggara', 'Bayaran dan penyelenggaraan', 'selenggara')),
+      h('nav', { class: 'admin-tabs', 'aria-label': 'Navigasi superadmin' }, tab('#/', 'Kedai', 'kedai'), tab('#/statistik', 'Statistik', 'statistik'), tab('#/selenggara', 'Bayaran dan penyelenggaraan', 'selenggara')),
       h('main', { class: 'admin-main stack' }, content),
     ),
   );
@@ -129,6 +131,7 @@ function route() {
   const [a, b] = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
   if (a === 'kedai' && b) return shell('kedai', viewShop(decodeURIComponent(b)));
   if (a === 'selenggara') return shell('selenggara', viewMaintenance());
+  if (a === 'statistik') return shell('statistik', viewStats());
   return shell('kedai', viewShops());
 }
 
@@ -530,3 +533,106 @@ function viewMaintenance() {
 }
 
 boot();
+
+// ---------------------------------------------------------------- statistik dan peringatan tamat (S-16b)
+
+const CHART_SHOPS = '#0d9488'; // disahkan dengan validator dataviz (lightness, chroma, kontras atas putih)
+const CHART_REVENUE = '#d97706';
+const shortDate = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+const ringgitShort = (sen) => (sen >= 100000 ? `RM${Math.round(sen / 100000) / 10}K` : `RM${Math.round(sen / 100)}`);
+
+function reminderText(r) {
+  const date = formatDate(r.expiresAt);
+  const link = `${location.origin}/app/#/langganan`;
+  const when = r.state === 'grace' || r.state === 'expired' ? `telah tamat pada ${date}` : `akan tamat pada ${date}`;
+  return `Salam. Ini dari Kedai AnnurPro. Langganan Pro untuk kedai ${r.name} (${location.host}/${r.slug}) ${when}. ` +
+    `Perbaharui di ${link} supaya produk, banner dan ciri Pro kekal dipaparkan. Terima kasih.`;
+}
+
+function viewStats() {
+  const wrap = h('div', { class: 'stack' }, h('h1', {}, 'Statistik'), loading());
+  async function load() {
+    try {
+      render(await api('/api/admin/stats'));
+    } catch (err) {
+      if (err.status === 401) return onError(err);
+      wrap.replaceChildren(h('h1', {}, 'Statistik'), errorBox(err, load));
+    }
+  }
+  function render(d) {
+    const t = d.totals;
+    const tile = (label, value, note) => h('div', { class: 'tile card' }, h('span', { class: 'tile-value' }, String(value)), h('span', { class: 'tile-label' }, label), note ? h('span', { class: 'caption' }, note) : null);
+    const shops30 = d.days.reduce((a, x) => a + x.shops, 0);
+    const users30 = d.days.reduce((a, x) => a + x.users, 0);
+
+    const remindList = d.ending.length
+      ? h(
+          'ul',
+          { class: 'remind-list' },
+          d.ending.map((r) => {
+            const note = h('span', { class: 'caption' }, r.remindedAt ? `Diingatkan ${formatDate(r.remindedAt)}` : 'Belum diingatkan');
+            const wa = h(
+              'a',
+              { class: 'btn btn-wa btn-sm', href: `https://wa.me/${r.whatsapp}?text=${encodeURIComponent(reminderText(r))}`, target: '_blank', rel: 'noopener' },
+              icon('whatsapp'),
+              h('span', {}, 'Ingatkan'),
+            );
+            wa.addEventListener('click', () => {
+              // Rekod tanpa menghalang pembukaan WhatsApp.
+              fetch(`/api/admin/shops/${encodeURIComponent(r.id)}/remind`, {
+                method: 'POST', credentials: 'same-origin', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: '{}',
+              }).then(() => { note.textContent = 'Diingatkan hari ini'; }, () => {});
+            });
+            return h(
+              'li',
+              { class: 'card remind-item' },
+              h(
+                'div',
+                { class: 'remind-info' },
+                h('a', { href: `#/kedai/${encodeURIComponent(r.id)}`, class: 'remind-name' }, r.name),
+                h('div', { class: 'caption' }, `/${r.slug} · tamat ${formatDate(r.expiresAt)}`),
+                h('div', { class: 'remind-meta' }, planBadge({ state: r.state }), note),
+              ),
+              wa,
+            );
+          }),
+        )
+      : h('p', { class: 'muted' }, 'Tiada Pro yang tamat dalam 14 hari atau dalam tempoh toleransi.');
+
+    wrap.replaceChildren(
+      h('h1', {}, 'Statistik'),
+      h(
+        'div',
+        { class: 'tiles' },
+        tile('Jumlah kedai', t.shops, `${shops30} baharu dalam 30 hari`),
+        tile('Pro aktif', t.paid, `${t.conversionPct}% daripada semua kedai`),
+        tile('Hasil 30 hari', formatSen(t.revenue30Sen).replace(/\.00$/, '')),
+        tile('Hasil keseluruhan', formatSen(t.revenueAllSen).replace(/\.00$/, ''), `${t.paymentsAll} bayaran`),
+        tile('Pengguna baharu', users30, 'dalam 30 hari'),
+      ),
+      h(
+        'section',
+        { class: 'card stack-sm' },
+        h('h2', {}, 'Kedai baharu sehari'),
+        h('p', { class: 'caption' }, '30 hari terakhir, waktu Malaysia.'),
+        barChart({ title: 'Kedai baharu sehari, 30 hari', color: CHART_SHOPS, data: d.days.map((x) => ({ label: shortDate(x.date), value: x.shops })), format: (v) => `${v} kedai`, axisFormat: String, tableHead: ['Tarikh', 'Kedai baharu'], integer: true }),
+      ),
+      h(
+        'section',
+        { class: 'card stack-sm' },
+        h('h2', {}, 'Hasil langganan sehari'),
+        h('p', { class: 'caption' }, 'Bayaran BCL yang diterapkan (jumlah sebelum yuran gateway), 30 hari terakhir.'),
+        barChart({ title: 'Hasil langganan sehari, 30 hari', color: CHART_REVENUE, data: d.days.map((x) => ({ label: shortDate(x.date), value: x.revenueSen })), format: formatSen, axisFormat: ringgitShort, tableHead: ['Tarikh', 'Hasil'] }),
+      ),
+      h(
+        'section',
+        { class: 'card stack-sm' },
+        h('h2', {}, 'Pro hampir tamat atau dalam toleransi'),
+        h('p', { class: 'caption' }, 'Tekan Ingatkan untuk buka WhatsApp dengan mesej siap ke nombor kedai. Tindakan direkod dalam log audit.'),
+        remindList,
+      ),
+    );
+  }
+  load();
+  return wrap;
+}

@@ -257,3 +257,5 @@ html[data-theme="light"] .phone-shot { border-color: #1a2140; }
 .device-wrap { translate: 0 var(--py, 0px); }
 @keyframes hero-in { from { opacity: 0; transform: translateY(20px); } }
 @keyframes device-in { from { opacity: 0; transform: translateY(40px) rotate(2deg); } }
+
+.brand-mark { width: 28px; height: 28px; flex: none; object-fit: contain; }

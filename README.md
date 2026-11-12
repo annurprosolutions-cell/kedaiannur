@@ -17,7 +17,8 @@ Stack: Cloudflare Pages (frontend statik tanpa build step) + Pages Functions (AP
 | 8 | Landing page (S-01) dengan tangkapan skrin sebenar, halaman `/privasi` dan `/terma`, eksport data JSON dan padam kedai (S-15), `/api/plans` awam, ukuran LCP | Kod siap, ujian lulus. Teks privasi dan terma ialah draf: semak sebelum launch |
 | 6 | Langganan BCL: borang (RM20/RM200, kuantiti), webhook dengan pengesahan API, kiraan bulan, bayaran tak padan diterapkan bila kedai dicipta, S-14 butang Bayar | Kod siap, ujian lulus. Perlu token BCL dan kunci webhook (lihat bawah) |
 | 8c | Cropper gambar produk dan banner, landing cerah lalai dengan animasi scroll | Kod siap, ujian lulus |
-| 8d | Logo kedai (semua pelan); Pro: logo jadi favicon dan ikon skrin utama kedai | Kod siap, ujian lulus. Perlu `db/0003_logo.sql` di D1 sebelum deploy |
+| 8d | Logo kedai (semua pelan); Pro: logo jadi favicon dan ikon skrin utama kedai | Siap, live |
+| P1 | Pusingan 1: jenama AnnurPro (favicon, ikon PWA, OG), maklumat hubungan kedai, senarai semak setup, panduan dan templat banner, statistik admin dengan carta, peringatan tamat melalui WhatsApp | Kod siap, ujian lulus. Perlu `db/0004_maklumat_kedai.sql` di D1 sebelum deploy |
 | 8b | Tema baharu landing (gelap midnight navy + aksen amber, mod cerah), PWA (manifest, service worker, ikon, offline, kad Pasang app) | Kod siap, ujian lulus |
 
 ## Struktur
@@ -263,6 +264,23 @@ Nota operasi:
 - Pro (ciri yang sama kelas dengan buang branding, `plans.hide_branding`): logo juga menjadi favicon dan
   apple-touch-icon halaman kedai (`snapshot.shop.fav`).
 - Migrasi: jalankan `db/0003_logo.sql` dalam D1 Console **sebelum** deploy kod ini. Ujian memuatkan semua `db/NNNN_*.sql` mengikut urutan.
+
+## Pusingan 1
+
+- **Jenama**: simbol "A" daripada logo AnnurPro (`public/assets/brand/annurpro-mark.png`). Jana semula ikon, favicon dan
+  tanda header dengan `node scripts/make-icons.js`; gambar pratonton lalai dengan `node scripts/make-og.js` (kemudian
+  kecilkan dengan pengkuantuman PNG, rujuk sejarah commit); templat banner dengan `node scripts/make-templates.js`.
+- **Maklumat hubungan kedai** (semua pelan, migrasi `db/0004_maklumat_kedai.sql`): waktu operasi, pautan Google Maps (hanya
+  domain Google Maps diterima), Instagram, TikTok, Facebook (disimpan sebagai nama akaun; pautan dibina oleh sistem).
+  Dipaparkan di bawah nama kedai (`snapshot.shop.info`).
+- **Senarai semak "Lengkapkan kedai"** di dashboard: logo, banner, 3 produk, penerangan, maklumat hubungan, kongsi link
+  (langkah kongsi ditanda dalam peranti, `localStorage`). Hilang bila semua siap.
+- **Panduan saiz**: banner 1600 x 800 (templat `/assets/templates/templat-banner-1600x800.png` dengan zon selamat dan
+  kawasan logo), logo 512 x 512, produk segi empat.
+- **Statistik admin** (`/admin/#/statistik`, `GET /api/admin/stats`): jubin, carta bar 30 hari (kedai baharu, hasil;
+  waktu Malaysia) dengan tooltip dan jadual, dan senarai Pro hampir tamat atau dalam toleransi dengan butang **Ingatkan**
+  yang membuka WhatsApp dengan mesej siap (`POST /api/admin/shops/:id/remind` merekod dalam audit log). Carta: `assets/js/chart.js`
+  (SVG tanpa library; warna disahkan dengan validator dataviz).
 
 ## Gambar: cropper
 

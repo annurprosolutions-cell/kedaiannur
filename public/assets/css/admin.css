@@ -10,9 +10,10 @@
 }
 .admin-tab[aria-current="page"] { color: var(--primary); border-bottom-color: var(--primary); }
 
-.tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s3); }
-@media (min-width: 640px) { .tiles { grid-template-columns: repeat(3, 1fr); } }
-@media (min-width: 1024px) { .tiles { grid-template-columns: repeat(6, 1fr); } }
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3); }
+.tiles > * { min-width: 0; }
+@media (min-width: 640px) { .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1024px) { .tiles { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 .tile { display: flex; flex-direction: column; gap: 2px; }
 .tile-value { font-size: 28px; font-weight: 700; line-height: 1.1; }
 .tile-label { font-weight: 600; font-size: 14px; }
@@ -42,3 +43,26 @@
 .slug-chip { display: inline-flex; align-items: center; gap: 4px; padding-right: 4px; cursor: default; }
 .slug-x { width: 44px; height: 44px; border: 0; background: transparent; border-radius: 50%; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: var(--muted); }
 .slug-x svg { width: 16px; height: 16px; }
+
+/* ---- Statistik: carta bar (chart.js) ---- */
+.chart { margin: 0; position: relative; }
+.chart-plot { width: 100%; min-height: 200px; }
+.chart-plot svg { display: block; max-width: 100%; }
+.chart-grid { stroke: #e2e8f0; stroke-width: 1; }
+.chart-base { stroke: #94a3b8; stroke-width: 1; }
+.chart-axis { fill: #475569; font-size: 11px; font-family: var(--font); }
+.chart-hit { fill: transparent; cursor: pointer; outline: none; }
+.chart-hit:focus-visible { fill: rgba(15, 23, 42, 0.06); }
+.chart-tip { position: absolute; pointer-events: none; z-index: 2; padding: 6px 10px; border-radius: 8px; background: #0f172a; color: #fff; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.chart-table summary { cursor: pointer; font-size: 14px; color: var(--muted); min-height: 32px; }
+.remind-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
+.remind-item { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); flex-wrap: wrap; }
+.remind-name { font-weight: 700; }
+.btn-wa { background: var(--success); color: #fff; }
+
+.tile-value { overflow-wrap: anywhere; }
+.admin-tabs { overflow-x: auto; scrollbar-width: none; }
+.admin-tab { white-space: nowrap; flex: none; }
+.remind-info { display: grid; gap: 4px; min-width: 0; }
+.remind-name { overflow-wrap: anywhere; }
+.remind-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }

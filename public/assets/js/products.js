@@ -470,7 +470,7 @@ export function viewProductForm(ctx, productId) {
       h(
         'section',
         { class: 'card stack' },
-        h('div', { class: 'image-field' }, preview, h('div', { class: 'stack-sm' }, fileIn, pickBtn, removeBtn, h('p', { class: 'caption' }, 'Dimampatkan automatik. Gambar besar dari kamera pun boleh.'))),
+        h('div', { class: 'image-field' }, preview, h('div', { class: 'stack-sm' }, fileIn, pickBtn, removeBtn, h('p', { class: 'caption' }, 'Gambar segi empat paling sesuai (contoh 1000 x 1000 piksel). Anda boleh potong selepas memilih; dimampatkan automatik.'))),
         imgMsg,
         nameF.el,
         priceF.el,

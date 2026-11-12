@@ -29,6 +29,8 @@ export const LIMITS = {
   categoryNameMax: 40,
   priceMaxSen: 99999999, // RM999,999.99
   templateMax: 800,
+  hoursMax: 200,
+  mapsMax: 300,
 };
 
 // Placeholder templat mesej WhatsApp (Pro, F-12). {senarai_item} wajib supaya order tak hilang item.
@@ -52,6 +54,11 @@ export const MSG = {
   peneranganProduk: `Penerangan produk maksimum ${LIMITS.productDescMax} aksara.`,
   harga: 'Harga tak sah. Contoh: 12.50, atau kosongkan untuk "Hubungi untuk harga".',
   namaKategori: `Nama kategori mesti 1 hingga ${LIMITS.categoryNameMax} aksara.`,
+  waktu: `Waktu operasi maksimum ${LIMITS.hoursMax} aksara.`,
+  maps: 'Pautan Google Maps tak sah. Dalam Google Maps, tekan Kongsi dan salin pautan.',
+  instagram: 'Nama Instagram tak sah. Contoh: @kuihmakteh atau pautan profil.',
+  tiktok: 'Nama TikTok tak sah. Contoh: @kuihmakteh atau pautan profil.',
+  facebook: 'Halaman Facebook tak sah. Contoh: kuihmakteh atau pautan halaman.',
 };
 
 // Slug yang tak boleh digunakan walaupun tiada dalam jadual reserved_slugs: ia bertembung dengan fail statik di akar
@@ -173,4 +180,83 @@ export function validateTemplate(input) {
   if (s.length > LIMITS.templateMax) return { error: `Templat maksimum ${LIMITS.templateMax} aksara.` };
   if (!s.includes('{senarai_item}')) return { error: 'Templat mesti mengandungi {senarai_item} supaya senarai order dihantar.' };
   return { value: s };
+}
+
+// ---------------------------------------------------------------- maklumat hubungan kedai
+
+/** Waktu operasi: teks bebas berbilang baris, maksimum LIMITS.hoursMax. */
+export function normalizeHours(input) {
+  if (input === null || input === undefined) return { value: '' };
+  if (typeof input !== 'string') return { error: MSG.waktu };
+  const s = cleanText(input, { multiline: true });
+  return s.length <= LIMITS.hoursMax ? { value: s } : { error: MSG.waktu };
+}
+
+// Hanya pautan Google Maps (termasuk pautan pendek Kongsi), supaya halaman kedai tak menjadi pautan ke laman lain.
+export function isMapsUrl(raw) {
+  let u;
+  try {
+    u = new URL(String(raw));
+  } catch {
+    return false;
+  }
+  if (u.protocol !== 'https:') return false;
+  const host = u.hostname.toLowerCase();
+  const path = u.pathname;
+  return (
+    host === 'maps.app.goo.gl' ||
+    host === 'g.page' ||
+    (host === 'goo.gl' && path.startsWith('/maps')) ||
+    /^maps\.google\.[a-z.]{2,10}$/.test(host) ||
+    (/^(www\.)?google\.[a-z.]{2,10}$/.test(host) && path.startsWith('/maps'))
+  );
+}
+
+export function normalizeMapsUrl(input) {
+  if (input === null || input === undefined) return { value: '' };
+  if (typeof input !== 'string') return { error: MSG.maps };
+  let s = input.trim();
+  if (!s) return { value: '' };
+  if (!/^https?:\/\//i.test(s)) s = `https://${s}`;
+  s = s.replace(/^http:/i, 'https:');
+  if (s.length > LIMITS.mapsMax || !isMapsUrl(s)) return { error: MSG.maps };
+  return { value: new URL(s).toString() };
+}
+
+const SOCIAL = {
+  instagram: { re: /^[A-Za-z0-9._]{1,30}$/, host: /(^|\.)instagram\.com$/ },
+  tiktok: { re: /^[A-Za-z0-9._]{2,24}$/, host: /(^|\.)tiktok\.com$/ },
+  facebook: { re: /^[A-Za-z0-9.-]{2,80}$/, host: /(^|\.)(facebook\.com|fb\.com)$/ },
+};
+
+/** Nama akaun media sosial daripada "@nama", "nama" atau pautan profil. Disimpan tanpa "@". */
+export function normalizeSocial(kind, input) {
+  const spec = SOCIAL[kind];
+  if (!spec) throw new Error(`Media sosial tak dikenali: ${kind}`);
+  if (input === null || input === undefined) return { value: '' };
+  if (typeof input !== 'string') return { error: MSG[kind] };
+  let s = input.trim();
+  if (!s) return { value: '' };
+  if (/^https?:\/\//i.test(s) || /^(www\.|m\.)?[a-z]+\.com\//i.test(s)) {
+    let u;
+    try {
+      u = new URL(/^https?:/i.test(s) ? s : `https://${s}`);
+    } catch {
+      return { error: MSG[kind] };
+    }
+    if (!spec.host.test(u.hostname.toLowerCase())) return { error: MSG[kind] };
+    s = kind === 'facebook' && u.pathname === '/profile.php' ? u.searchParams.get('id') || '' : u.pathname.split('/').filter(Boolean)[0] || '';
+  }
+  s = s.replace(/^@/, '');
+  return spec.re.test(s) ? { value: s } : { error: MSG[kind] };
+}
+
+/** Pautan profil untuk dipaparkan di halaman kedai. */
+export function socialUrl(kind, handle) {
+  const h = encodeURIComponent(String(handle || ''));
+  if (!h) return '';
+  if (kind === 'instagram') return `https://www.instagram.com/${h}/`;
+  if (kind === 'tiktok') return `https://www.tiktok.com/@${h}`;
+  if (kind === 'facebook') return /^\d+$/.test(handle) ? `https://www.facebook.com/profile.php?id=${h}` : `https://www.facebook.com/${h}`;
+  return '';
 }
