@@ -33,6 +33,7 @@ function resolveRoute() {
   if (a === 'produk' && b === 'baru') return { nav: 'produk', view: () => titled('Tambah produk', viewProductForm(ctx, null)) };
   if (a === 'produk' && b) return { nav: 'produk', view: () => titled('Ubah produk', viewProductForm(ctx, b)) };
   if (a === 'kategori') return { nav: 'produk', view: () => titled('Kategori', viewCategories(ctx)) };
+  if (a === 'tetapan' && b) return { nav: 'tetapan', view: () => titled('Tetapan', viewSettings(ctx, { section: b })) };
   if (a === 'qr') return { nav: '', view: () => titled('Kod QR', viewQr(ctx)) };
   return NAV.some((n) => n.route === a) ? { nav: a, view: VIEWS[a] } : { nav: '', view: VIEWS[''] };
 }
@@ -320,11 +321,11 @@ function shareActions(shop) {
 // Senarai semak "Lengkapkan kedai": langkah yang membuat kedai sedia dikongsi. Hilang bila semua siap.
 function setupChecklist(shop, usage) {
   const steps = [
-    ['Muat naik logo', Boolean(shop.logoKey), '#/tetapan'],
-    ['Letak banner', usage.banners > 0, '#/tetapan'],
+    ['Muat naik logo', Boolean(shop.logoKey), '#/tetapan/logo'],
+    ['Letak banner', usage.banners > 0, '#/tetapan/banner'],
     ['Tambah sekurang-kurangnya 3 produk', usage.products >= 3, '#/produk/baru'],
-    ['Tulis penerangan kedai', Boolean(shop.hasDescription), '#/tetapan'],
-    ['Isi waktu operasi, lokasi atau media sosial', Boolean(shop.hasContact), '#/tetapan'],
+    ['Tulis penerangan kedai', Boolean(shop.hasDescription), '#/tetapan/maklumat'],
+    ['Isi waktu operasi, lokasi atau media sosial', Boolean(shop.hasContact), '#/tetapan/hubungan'],
     ['Kongsi link kedai kepada pelanggan', wasShared(shop), null],
   ];
   const done = steps.filter((s) => s[1]).length;

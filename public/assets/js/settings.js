@@ -14,7 +14,7 @@ import {
 } from './rules.js';
 import { addToCart, buildMessage, emptyCart, summarize } from './order.js';
 
-export function viewSettings(ctx) {
+export function viewSettings(ctx, { section = '' } = {}) {
   const root = h('div', { class: 'stack' }, h('h1', {}, 'Tetapan kedai'));
   const loading = h('div', { class: 'skeleton', style: 'height:240px' });
   root.appendChild(loading);
@@ -24,6 +24,16 @@ export function viewSettings(ctx) {
       const [cfg, data] = await Promise.all([getConfig(), api('/api/shop')]);
       loading.remove();
       root.appendChild(build(cfg, data));
+      // Pautan dalam (contoh daripada senarai semak): skrol ke kad yang dituju dan fokus pada ruang pertama.
+      if (section) {
+        requestAnimationFrame(() => {
+          const el = root.querySelector(`#sec-${CSS.escape(section)}`);
+          if (!el) return;
+          el.scrollIntoView({ block: 'start' });
+          const target = el.querySelector('input:not([type="file"]), textarea, select, button');
+          if (target) target.focus({ preventScroll: true });
+        });
+      }
     } catch (err) {
       if (err.status === 401) return ctx.onError(err);
       loading.replaceWith(
@@ -572,10 +582,10 @@ export function viewSettings(ctx) {
     return h(
       'div',
       { class: 'stack' },
-      h('section', { class: 'card stack' }, h('h2', {}, 'Maklumat kedai'), nameF.el, slugF.el, slugWarn, waF.el, descF.el),
+      h('section', { class: 'card stack', id: 'sec-maklumat' }, h('h2', {}, 'Maklumat kedai'), nameF.el, slugF.el, slugWarn, waF.el, descF.el),
       h(
         'section',
-        { class: 'card stack' },
+        { class: 'card stack', id: 'sec-hubungan' },
         h('h2', {}, 'Waktu, lokasi dan media sosial'),
         h('p', { class: 'caption' }, 'Semua pilihan. Yang diisi sahaja dipaparkan di halaman kedai.'),
         hoursF.el,
@@ -586,7 +596,7 @@ export function viewSettings(ctx) {
       ),
       h(
         'section',
-        { class: 'card stack' },
+        { class: 'card stack', id: 'sec-marketplace' },
         h('h2', {}, 'Marketplace'),
         h('p', { class: 'caption' }, `Marketplace menyenaraikan kedai di kedai.annurpro.com/marketplace. Syarat: jenis kedai dipilih, ada logo atau banner, dan sekurang-kurangnya ${MARKET_MIN_PRODUCTS} produk yang ada stok.`),
         catF.el,
@@ -605,7 +615,7 @@ export function viewSettings(ctx) {
       saveBtn,
       h(
         'section',
-        { class: 'card stack' },
+        { class: 'card stack', id: 'sec-logo' },
         h('h2', {}, 'Logo'),
         h('div', { class: 'logo-row' }, logoPreview, h('div', { class: 'stack-sm' }, logoFile, logoPick, logoRemove)),
         logoNote,
@@ -613,7 +623,7 @@ export function viewSettings(ctx) {
       ),
       h(
         'section',
-        { class: 'card stack' },
+        { class: 'card stack', id: 'sec-banner' },
         h('h2', {}, 'Banner'),
         h(
           'div',

@@ -1570,6 +1570,17 @@ test('Maklumat hubungan: diisi di Tetapan, dipaparkan di kedai dengan pautan sel
   const before = await checklist.locator('[role="progressbar"]').getAttribute('aria-valuenow');
   await shot(page, '18-senarai-semak');
 
+  // Pautan senarai semak terus ke kad yang dituju (skrol dan fokus), bukan atas halaman Tetapan.
+  await checklist.getByRole('link', { name: 'Isi waktu operasi, lokasi atau media sosial' }).click();
+  await page.locator('#s-hours').waitFor();
+  assert.equal(await page.evaluate(() => document.activeElement && document.activeElement.id), 's-hours', 'ruang waktu operasi difokus');
+  const box = await page.locator('#sec-hubungan').boundingBox();
+  assert.ok(box.y >= 0 && box.y < 200, `kad hubungan di bahagian atas skrin (y=${box.y})`);
+  await page.goto(`${BASE}/app/`);
+  await checklist.getByRole('link', { name: 'Tulis penerangan kedai' }).click();
+  await page.locator('#s-name').waitFor();
+  assert.equal(await page.evaluate(() => new URL(location.href).hash), '#/tetapan/maklumat');
+
   await page.goto(`${BASE}/app/#/tetapan`);
   await page.getByRole('heading', { name: 'Waktu, lokasi dan media sosial' }).waitFor();
   await page.getByLabel('Lokasi Google Maps').fill('https://evil.test/maps');

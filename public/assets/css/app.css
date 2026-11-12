@@ -191,3 +191,6 @@ html { overscroll-behavior-y: none; }
   .qr-poster-preview { max-width: none; width: 100%; height: 100%; object-fit: contain; border: 0; }
   @page { size: A5; margin: 0; }
 }
+
+/* Pautan dalam Tetapan: kad tak tersorok di bawah header melekat */
+[id^="sec-"] { scroll-margin-top: 72px; }
