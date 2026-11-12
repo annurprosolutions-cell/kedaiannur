@@ -2,6 +2,7 @@
 // Kedai yang tak disenaraikan masih boleh diindeks melalui pautan biasa, cuma tak diiklankan dalam sitemap.
 
 import { getMarketIndex } from '../lib/market.js';
+import { ARTICLES } from '../lib/articles.js';
 
 const esc = (s) => String(s).replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' })[c]);
 
@@ -17,6 +18,8 @@ export async function onRequestGet({ request, env, waitUntil }) {
     { loc: `${origin}/`, priority: '1.0' },
     { loc: `${origin}/marketplace`, priority: '0.9' },
     ...shops.map((s) => ({ loc: `${origin}/${encodeURIComponent(s.s)}`, lastmod: String(s.u || '').slice(0, 10), priority: '0.7' })),
+    { loc: `${origin}/artikel/`, priority: '0.6' },
+    ...ARTICLES.map((a) => ({ loc: `${origin}/artikel/${a.slug}`, lastmod: a.date, priority: '0.5' })),
     { loc: `${origin}/privasi`, priority: '0.2' },
     { loc: `${origin}/terma`, priority: '0.2' },
   ];

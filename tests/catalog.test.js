@@ -27,7 +27,7 @@ test('IPD 3.4: cipta kedai menerbitkan catalog/<slug>.json dengan format BSD sek
   assert.ok(Date.parse(s.updated));
   assert.deepEqual(s.shop, {
     name: 'Kedai Wakanda', slug: 'wakanda', desc: 'Kuih sedap', wa: '60123456789', theme: '#0F766E',
-    open: true, askName: true, askAddr: true, tpl: null, branding: true, logo: null, fav: false, info: {},
+    open: true, askName: true, askAddr: true, tpl: null, branding: true, logo: null, fav: false, px: {}, info: {},
   });
   assert.deepEqual(s.banners, []);
   assert.deepEqual(s.cats, []);

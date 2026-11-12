@@ -194,3 +194,15 @@ html { overscroll-behavior-y: none; }
 
 /* Pautan dalam Tetapan: kad tak tersorok di bawah header melekat */
 [id^="sec-"] { scroll-margin-top: 72px; }
+
+/* ---- Statistik kedai ---- */
+.stat-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); }
+.stat-tiles-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 640px) { .stat-tiles-6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.stat-tile { display: grid; gap: 2px; padding: var(--s3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+.stat-value { font-size: 24px; font-weight: 800; line-height: 1.1; overflow-wrap: anywhere; }
+.stat-label { font-size: 13px; font-weight: 600; color: var(--muted); }
+.seg-row { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.top-list { margin: 0; padding-left: 20px; display: grid; gap: var(--s2); }
+.top-list li span { margin-right: var(--s2); overflow-wrap: anywhere; }
+.top-list li strong { float: right; font-size: 14px; }

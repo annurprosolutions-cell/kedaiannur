@@ -139,7 +139,8 @@ export function viewQr(ctx) {
       const [{ default: qrcode }, cfg, data] = await Promise.all([import(LIB), getConfig(), api('/api/shop')]);
       const shop = data.shop;
       const url = `${location.origin}/${shop.slug}`;
-      const m = qrMatrix(qrcode, url);
+      // QR membawa ?src=qr supaya statistik boleh membezakan pelawat dari kod QR atau poster.
+      const m = qrMatrix(qrcode, `${url}?src=qr`);
 
       const qrCanvas = h('canvas', { class: 'qr-canvas', width: 720, height: 720, role: 'img', 'aria-label': `Kod QR ke ${url}` });
       drawQr(qrCanvas.getContext('2d'), m, 0, 0, 720);

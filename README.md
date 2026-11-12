@@ -19,7 +19,8 @@ Stack: Cloudflare Pages (frontend statik tanpa build step) + Pages Functions (AP
 | 8c | Cropper gambar produk dan banner, landing cerah lalai dengan animasi scroll | Kod siap, ujian lulus |
 | 8d | Logo kedai (semua pelan); Pro: logo jadi favicon dan ikon skrin utama kedai | Siap, live |
 | P1 | Pusingan 1: jenama AnnurPro (favicon, ikon PWA, OG), maklumat hubungan kedai, senarai semak setup, panduan dan templat banner, statistik admin dengan carta, peringatan tamat melalui WhatsApp | Siap, live |
-| P2 | Pusingan 2: Marketplace (jenis kedai, Pro automatik, Percuma pilih masuk, syarat kelengkapan, Pilihan Admin), sitemap.xml, JSON-LD kedai, kod QR dan poster A5 (Fasa 10) | Kod siap, ujian lulus. Perlu `db/0005_marketplace.sql` di D1 sebelum deploy |
+| P2 | Pusingan 2: Marketplace (jenis kedai, Pro automatik, Percuma pilih masuk, syarat kelengkapan, Pilihan Admin), sitemap.xml, JSON-LD kedai, kod QR dan poster A5 (Fasa 10) | Siap, live |
+| P3 | Pusingan 3: statistik pelawat tanpa nama (Fasa 11), carta peniaga (Percuma 7 hari, Pro 90 hari), piksel iklan Meta/TikTok/Google (Pro), 5 artikel SEO | Kod siap, ujian lulus. Perlu `db/0006_statistik_piksel.sql` di D1 sebelum deploy |
 | 8b | Tema baharu landing (gelap midnight navy + aksen amber, mod cerah), PWA (manifest, service worker, ikon, offline, kad Pasang app) | Kod siap, ujian lulus |
 
 ## Struktur
@@ -298,6 +299,23 @@ Nota operasi:
 - **Kod QR** (`#/qr`, `assets/js/qr.js`): dijana dalam browser dengan `assets/vendor/qrcode-generator-2.0.4.js`
   (MIT, Kazuhiko Arase), muat turun PNG, poster A5 dengan logo kedai (logo perlu CORS pada domain media; jika tiada,
   poster dijana tanpa logo) dan butang cetak.
+
+## Pusingan 3: statistik, piksel iklan, artikel
+
+- **Statistik tanpa nama** (`lib/stats.js`): halaman kedai (`assets/js/track.js`) mengira lawatan (sekali setiap sesi
+  pelayar), paparan produk, tambah troli dan tekan "Hantar ke WhatsApp", dan menghantar satu kumpulan acara dengan
+  `sendBeacon` ke `POST /api/track/:slug` (awam, tetapi Origin dan JSON disemak). Disimpan sebagai jumlah harian
+  (`stats_daily`, `stats_product`), waktu Malaysia, tanpa IP, kuki atau ID pelawat; dipadam selepas 120 hari.
+  Bot dan pratonton link (WhatsApp, Facebook, headless) diabaikan; nilai dihadkan setiap permintaan.
+  Kod QR membawa `?src=qr` untuk kiraan "Dari kod QR" (dibuang daripada URL selepas dibaca).
+- **Peniaga**: kad "Statistik 7 hari" di dashboard dan `#/statistik` (`GET /api/stats?days=`): Percuma 7 hari,
+  Pro 30/90 hari dan produk paling dilihat. **Admin**: lawatan 30 hari dan kedai paling dilawati.
+- **Piksel iklan** (Pro): Meta Pixel (Facebook dan Instagram), TikTok Pixel, Google (G- atau AW-). Hanya ID disimpan
+  (`rules.js PIXELS`); pemuat ditulis semula tanpa skrip inline (`assets/js/pixels.js`) dan dimuat selepas halaman
+  siap. CSP halaman kedai diperluas hanya untuk domain piksel yang dipasang kedai itu (`pageHeaders` dalam
+  `lib/shoppage.js`). Acara: PageView, ViewContent, AddToCart, InitiateCheckout (RM). Notis piksel di kaki kedai;
+  Dasar Privasi dan Terma dikemas kini. Bila Pro tamat, piksel berhenti diterbitkan.
+- **Artikel** `/artikel/` (statik): 5 artikel BM; senarai dalam `lib/articles.js` (sitemap dan ujian).
 
 ## Gambar: cropper
 

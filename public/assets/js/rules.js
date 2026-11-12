@@ -63,7 +63,7 @@ export const MSG = {
 
 // Slug yang tak boleh digunakan walaupun tiada dalam jadual reserved_slugs: ia bertembung dengan fail statik di akar
 // (index.html, 404.html, terma.html, offline.html, marketplace.html, sitemap.xml, robots.txt). privasi sudah ada dalam reserved_slugs.
-const EXTRA_RESERVED = new Set(['index', '404', 'terma', 'offline', 'marketplace', 'sitemap', 'robots']);
+const EXTRA_RESERVED = new Set(['index', '404', 'terma', 'offline', 'marketplace', 'sitemap', 'robots', 'artikel']);
 
 export function isReservedLocally(slug) {
   return EXTRA_RESERVED.has(slug);
@@ -294,3 +294,22 @@ export function normalizeCategory(input) {
 
 // Syarat kelengkapan sebelum kedai dipaparkan di Marketplace (semua pelan), supaya Marketplace tak dipenuhi kedai kosong.
 export const MARKET_MIN_PRODUCTS = 3;
+
+// ---------------------------------------------------------------- piksel iklan (Pro)
+
+// Hanya ID diterima, bukan kod: skrip pemuat dijana oleh sistem (assets/js/pixels.js), jadi tiada skrip peniaga disuntik.
+export const PIXELS = {
+  metaPixel: { re: /^\d{10,20}$/, msg: 'ID Meta Pixel ialah 10 hingga 20 digit. Contoh: 123456789012345' },
+  tiktokPixel: { re: /^[A-Z0-9]{15,30}$/, msg: 'ID TikTok Pixel ialah huruf besar dan nombor. Contoh: CABCDEF1234567890XYZ' },
+  googleTag: { re: /^(G|AW)-[A-Z0-9]{4,20}$/, msg: 'ID Google mesti bermula G- (Analytics) atau AW- (Google Ads). Contoh: G-ABC123XYZ' },
+};
+
+export function normalizePixel(kind, input) {
+  const spec = PIXELS[kind];
+  if (!spec) throw new Error(`Piksel tak dikenali: ${kind}`);
+  if (input === null || input === undefined) return { value: '' };
+  if (typeof input !== 'string') return { error: spec.msg };
+  const s = input.trim().replace(/\s+/g, '').toUpperCase();
+  if (!s) return { value: '' };
+  return spec.re.test(s) ? { value: s } : { error: spec.msg };
+}

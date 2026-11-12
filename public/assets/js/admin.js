@@ -631,6 +631,7 @@ function viewStats() {
         tile('Hasil 30 hari', formatSen(t.revenue30Sen).replace(/\.00$/, '')),
         tile('Hasil keseluruhan', formatSen(t.revenueAllSen).replace(/\.00$/, ''), `${t.paymentsAll} bayaran`),
         tile('Pengguna baharu', users30, 'dalam 30 hari'),
+        tile('Lawatan kedai', t.views30, `${t.orders30} order WhatsApp, 10 kedai teratas, 30 hari`),
       ),
       h(
         'section',
@@ -645,6 +646,14 @@ function viewStats() {
         h('h2', {}, 'Hasil langganan sehari'),
         h('p', { class: 'caption' }, 'Bayaran BCL yang diterapkan (jumlah sebelum yuran gateway), 30 hari terakhir.'),
         barChart({ title: 'Hasil langganan sehari, 30 hari', color: CHART_REVENUE, data: d.days.map((x) => ({ label: shortDate(x.date), value: x.revenueSen })), format: formatSen, axisFormat: ringgitShort, tableHead: ['Tarikh', 'Hasil'] }),
+      ),
+      h(
+        'section',
+        { class: 'card stack-sm' },
+        h('h2', {}, 'Kedai paling dilawati (30 hari)'),
+        d.topShops.length
+          ? h('ol', { class: 'top-list' }, d.topShops.map((r) => h('li', {}, h('a', { href: `#/kedai/${encodeURIComponent(r.id)}` }, r.name), h('span', { class: 'caption' }, ` ${r.views} lawatan · ${r.orders} order`))))
+          : h('p', { class: 'muted' }, 'Belum ada lawatan direkod.'),
       ),
       h(
         'section',

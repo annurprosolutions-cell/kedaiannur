@@ -1,3 +1,4 @@
+/* global CSS */
 // S-13 Tetapan kedai: maklumat, slug, WhatsApp, warna, suis buka/tutup dan minta nama/alamat, serta banner.
 // Template mesej WhatsApp (Pro) dibuka dalam Fasa 5. Banner disimpan serta-merta setiap tindakan;
 // bahagian lain disimpan dengan butang Simpan perubahan (hanya medan yang berubah dihantar).
@@ -10,7 +11,7 @@ import { compressBitmap, readImage, releaseImage, ImageError } from './image.js'
 import { openCropper } from './cropper.js';
 import {
   LIMITS, MSG, TEMPLATE_PLACEHOLDERS, cleanText, formatWhatsapp, isReservedLocally, normalizeHours, normalizeMapsUrl, normalizeSlug,
-  normalizeSocial, normalizeWhatsapp, slugFormatIssue, validateTemplate, SHOP_CATEGORIES, MARKET_MIN_PRODUCTS,
+  normalizeSocial, normalizeWhatsapp, slugFormatIssue, validateTemplate, SHOP_CATEGORIES, MARKET_MIN_PRODUCTS, normalizePixel,
 } from './rules.js';
 import { addToCart, buildMessage, emptyCart, summarize } from './order.js';
 
@@ -134,6 +135,25 @@ export function viewSettings(ctx, { section = '' } = {}) {
           ),
     );
 
+    // ------------------------------------------------ piksel iklan (Pro)
+    const canPixel = shop.plan.hideBranding;
+    const pxInput = (placeholder, value) => {
+      const i = textInput({ autocapitalize: 'characters', autocomplete: 'off', spellcheck: 'false', placeholder, disabled: !canPixel });
+      i.value = value || '';
+      return i;
+    };
+    const metaIn = pxInput('Contoh: 123456789012345', shop.metaPixel);
+    const ttIn2 = pxInput('Contoh: CABCDEF1234567890XYZ', shop.tiktokPixel);
+    const gIn = pxInput('Contoh: G-ABC123XYZ atau AW-123456789', shop.googleTag);
+    const metaF = field({ id: 's-px-meta', label: 'Meta Pixel ID (Facebook dan Instagram)', input: metaIn, hint: 'Meta Events Manager, Data sources, pilih piksel, salin "Pixel ID" (nombor).' });
+    const ttF2 = field({ id: 's-px-tiktok', label: 'TikTok Pixel ID', input: ttIn2, hint: 'TikTok Ads Manager, Assets, Events, Web events, salin ID piksel.' });
+    const gF = field({ id: 's-px-google', label: 'Google Analytics atau Google Ads ID', input: gIn, hint: 'Google Analytics: Measurement ID (G-...). Google Ads: Conversion ID (AW-...).' });
+    const pixels = [
+      ['metaPixel', metaIn, metaF, shop.metaPixel || ''],
+      ['tiktokPixel', ttIn2, ttF2, shop.tiktokPixel || ''],
+      ['googleTag', gIn, gF, shop.googleTag || ''],
+    ];
+
     // ------------------------------------------------ warna dan paparan
     const sw = swatches(shop.themeColor, () => refresh());
     const openRow = switchRow({ id: 's-open', title: 'Kedai sedang buka', desc: 'Bila ditutup, pelanggan nampak kedai tapi tak boleh hantar order.', checked: shop.isOpen, onChange: () => refresh() });
@@ -215,6 +235,11 @@ export function viewSettings(ctx, { section = '' } = {}) {
     function collect() {
       const diff = {};
       if (catSel.value !== (shop.category || '')) diff.category = catSel.value;
+      for (const [key, input, , current] of pixels) {
+        const r = normalizePixel(key, input.value);
+        const next = r.error ? input.value.trim() : r.value;
+        if (next !== current) diff[key] = input.value;
+      }
       if (marketRow.input.checked !== marketOn) diff.marketOpt = marketRow.input.checked;
       for (const [key, input, , norm, current] of contact) {
         const r = norm(input.value);
@@ -311,7 +336,7 @@ export function viewSettings(ctx, { section = '' } = {}) {
       catF.msg('');
       refresh();
     });
-    for (const [, input, f] of contact) {
+    for (const [, input, f] of [...contact, ...pixels]) {
       input.addEventListener('input', () => {
         f.msg('');
         refresh();
@@ -331,6 +356,14 @@ export function viewSettings(ctx, { section = '' } = {}) {
         const t = validateTemplate(diff.messageTemplate);
         if (t.error) errors.messageTemplate = t.error;
         else diff.messageTemplate = t.value;
+      }
+      for (const [key, , f] of pixels) {
+        if (!(key in diff)) continue;
+        const r = normalizePixel(key, diff[key]);
+        if (r.error) {
+          errors[key] = r.error;
+          f.msg(r.error);
+        }
       }
       for (const [key, , f, norm] of contact) {
         if (!(key in diff)) continue;
@@ -371,6 +404,7 @@ export function viewSettings(ctx, { section = '' } = {}) {
           if (err.fields.messageTemplate) tplF.msg(err.fields.messageTemplate);
           for (const [key, , f] of contact) if (err.fields[key]) f.msg(err.fields[key]);
           if (err.fields.category) catF.msg(err.fields.category);
+          for (const [key, , f] of pixels) if (err.fields[key]) f.msg(err.fields[key]);
         }
         toast(err.message, 'error');
         refresh();
@@ -593,6 +627,16 @@ export function viewSettings(ctx, { section = '' } = {}) {
         igF.el,
         ttF.el,
         fbF.el,
+      ),
+      h(
+        'section',
+        { class: 'card stack', id: 'sec-piksel' },
+        h('div', { class: 'shop-head' }, h('h2', {}, 'Piksel iklan'), canPixel ? null : h('span', { class: 'badge' }, 'Pro')),
+        h('p', { class: 'caption' }, 'Untuk peniaga yang membuat iklan. Isi ID sahaja, bukan kod. Sistem menghantar acara Lihat produk, Tambah troli dan Mula checkout (tekan Hantar ke WhatsApp) dalam RM. Notis piksel dipaparkan di bawah halaman kedai.'),
+        metaF.el,
+        ttF2.el,
+        gF.el,
+        canPixel ? null : h('a', { class: 'btn btn-secondary btn-block', href: '#/langganan' }, 'Lihat pelan Pro'),
       ),
       h(
         'section',

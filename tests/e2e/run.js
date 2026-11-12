@@ -252,9 +252,9 @@ window.google = { accounts: { id: {
   disableAutoSelect() { window.__gsiDisabled = true; }
 } } };`;
 
-async function newPage({ width = 360, height = 780, sid, permissions, sw = false } = {}) {
+async function newPage({ width = 360, height = 780, sid, permissions, sw = false, userAgent } = {}) {
   // Service worker disekat kecuali ujian PWA: ia memintas context.route dan boleh menyembunyikan ralat rangkaian.
-  const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1, permissions, serviceWorkers: sw ? 'allow' : 'block' });
+  const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1, permissions, serviceWorkers: sw ? 'allow' : 'block', userAgent });
   if (sid) {
     await context.addCookies([
       { name: '__Host-sid', value: sid, domain: '127.0.0.1', path: '/', secure: true, httpOnly: true, sameSite: 'Lax' },
@@ -708,7 +708,7 @@ test('S-13: tetapan (nama, slug, warna, suis) dan pengurusan banner dengan had p
   await page.locator('#banner-msg', { hasText: 'Banner ditambah.' }).waitFor();
   assert.equal(await addBtn.isDisabled(), true, 'had 1 banner pelan Percuma');
   await page.getByText('Had 1 banner pelan Percuma dicapai.').waitFor();
-  await page.getByRole('link', { name: 'Lihat pelan Pro' }).waitFor();
+  await page.locator('#sec-banner').getByRole('link', { name: 'Lihat pelan Pro' }).waitFor();
   assert.match(await page.locator('.banner-item img').getAttribute('src'), new RegExp(`^${MEDIA}/shops/[^/]+/b_[0-9a-f-]{36}\\.webp$`));
   await touchTargets(page, '.icon-btn');
   await noHorizontalScroll(page);
@@ -1588,8 +1588,8 @@ test('Maklumat hubungan: diisi di Tetapan, dipaparkan di kedai dengan pautan sel
   await page.locator('#s-maps-msg', { hasText: 'Pautan Google Maps tak sah' }).waitFor();
   await page.getByLabel('Waktu operasi').fill('Isnin hingga Sabtu\n9 pagi hingga 9 malam');
   await page.getByLabel('Lokasi Google Maps').fill('maps.app.goo.gl/Ujian123');
-  await page.getByLabel('Instagram').fill('https://www.instagram.com/kedaibayar/');
-  await page.getByLabel('TikTok').fill('@kedai.bayar');
+  await page.getByLabel('Instagram', { exact: true }).fill('https://www.instagram.com/kedaibayar/');
+  await page.getByLabel('TikTok', { exact: true }).fill('@kedai.bayar');
   await page.getByRole('button', { name: 'Simpan perubahan' }).click();
   await page.getByText('Tetapan disimpan.').waitFor();
 
@@ -1744,7 +1744,7 @@ test('Kod QR: QR boleh diimbas ke link kedai, muat turun PNG, poster A5', async 
       }
     }
     return true;
-  }, `${BASE}/kedai-bayar`);
+  }, `${BASE}/kedai-bayar?src=qr`);
   assert.equal(ok, true, 'piksel QR sepadan dengan link kedai');
   const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Muat turun kod QR (PNG)' }).click()]);
   assert.equal(dl.suggestedFilename(), 'qr-kedai-bayar.png');
@@ -1757,6 +1757,136 @@ test('Kod QR: QR boleh diimbas ke link kedai, muat turun PNG, poster A5', async 
   assert.equal(dl2.suggestedFilename(), 'poster-qr-kedai-bayar.png');
   await noHorizontalScroll(page);
   await shot(page, '22-kod-qr');
+  await context.close();
+});
+
+
+// ================================================================ Pusingan 3
+
+const PHONE_UA = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36';
+
+test('Statistik dan piksel: lawatan dari QR, produk, troli dan order dikira; piksel Pro menerima acara dalam RM; peniaga nampak di #/statistik', async () => {
+  const patch = await fetch(`${BASE}/api/shop`, {
+    method: 'PATCH',
+    headers: { Cookie: `__Host-sid=${TOKEN_F}`, Origin: BASE, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ metaPixel: '123456789012345', tiktokPixel: 'CABCDEF1234567890XYZ', googleTag: 'G-ABC123XYZ' }),
+  });
+  assert.equal(patch.status, 200);
+  const before = (await apiGet('/api/stats?days=7', TOKEN_F)).json.totals;
+
+  const { context, page } = await newPage({ userAgent: PHONE_UA });
+  // Skrip piksel sebenar tak dimuat turun dalam ujian: dihidang kosong supaya fungsi piksel kekal sebagai queue.
+  await context.route(/https:\/\/(connect\.facebook\.net|analytics\.tiktok\.com|www\.googletagmanager\.com)\//, (r) => r.fulfill({ contentType: 'text/javascript', body: '' }));
+  const res = await page.goto(`${BASE}/kedai-bayar?src=qr`);
+  const csp = res.headers()['content-security-policy'];
+  for (const d of ['https://connect.facebook.net', 'https://analytics.tiktok.com', 'https://www.googletagmanager.com']) assert.ok(csp.includes(d), d);
+  await page.locator('.p-add').first().waitFor();
+  assert.equal(new URL(page.url()).search, '', '?src=qr dibuang daripada URL');
+  await page.waitForFunction(() => window.fbq && window.ttq && window.dataLayer, null, { timeout: 10000 });
+  await page.locator('.pixel-note', { hasText: 'piksel pengiklanan' }).waitFor();
+
+  await page.locator('.p-open').first().click();
+  await page.getByRole('dialog').waitFor();
+  await page.getByRole('dialog').getByRole('button', { name: 'Tutup' }).click();
+  await page.locator('.p-add').first().click();
+  await page.locator('.cart-bar').click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Teruskan' }).click();
+  const co = page.getByRole('dialog', { name: 'Semak dan hantar' });
+  await co.waitFor();
+  const nameField = co.getByLabel('Nama', { exact: true });
+  if (await nameField.count()) await nameField.fill('Ali');
+  await Promise.all([context.waitForEvent('request', (r) => r.url().startsWith('https://wa.me/')), co.getByRole('link', { name: 'Hantar ke WhatsApp' }).click()]);
+
+  const ev = await page.evaluate(() => ({
+    meta: window.fbq.queue.map((a) => [a[0], a[1], a[2] && a[2].currency]),
+    tiktok: window.ttq.filter((x) => Array.isArray(x)).map((x) => [x[0], x[1]]),
+    google: window.dataLayer.map((a) => [a[0], a[1]]),
+  }));
+  assert.deepEqual(ev.meta.slice(0, 2).map((x) => x.slice(0, 2)), [['init', '123456789012345'], ['track', 'PageView']]);
+  for (const name of ['ViewContent', 'AddToCart', 'InitiateCheckout']) {
+    assert.ok(ev.meta.some(([m, n, cur]) => m === 'track' && n === name && cur === 'MYR'), `Meta ${name}`);
+    assert.ok(ev.tiktok.some(([m, n]) => m === 'track' && n === name), `TikTok ${name}`);
+  }
+  for (const name of ['view_item', 'add_to_cart', 'begin_checkout']) assert.ok(ev.google.some(([k, n]) => k === 'event' && n === name), `Google ${name}`);
+  assert.ok(ev.google.some(([k, n]) => k === 'config' && n === 'G-ABC123XYZ'));
+  for (const p of context.pages().slice(1)) await p.close();
+  await page.goto(`${BASE}/marketplace`); // pagehide: baki acara dihantar
+  await context.close();
+
+  let after;
+  for (let i = 0; i < 20; i++) {
+    after = (await apiGet('/api/stats?days=7', TOKEN_F)).json.totals;
+    if (after.carts > before.carts && after.views > before.views) break;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  assert.deepEqual(
+    [after.views - before.views, after.qr - before.qr, after.items - before.items, after.carts - before.carts, after.orders - before.orders],
+    [1, 1, 1, 1, 1],
+  );
+
+  // Lawatan kedua dalam sesi yang sama tak dikira semula.
+  const again = await newPage({ userAgent: PHONE_UA });
+  const flush = async () => {
+    const [resp] = await Promise.all([
+      again.page.waitForResponse((r) => r.url().includes('/api/track/kedai-bayar')),
+      again.page.evaluate(() => window.dispatchEvent(new Event('pagehide'))),
+    ]);
+    assert.equal(resp.status(), 200);
+  };
+  await again.page.goto(`${BASE}/kedai-bayar`);
+  await again.page.locator('.p-add').first().waitFor();
+  await flush();
+  await again.page.reload();
+  await again.page.locator('.p-add').first().waitFor();
+  await again.page.locator('.p-add').first().click(); // reload: lawatan tak dikira semula, tapi troli dikira
+  await flush();
+  await again.context.close();
+  assert.equal((await apiGet('/api/stats?days=7', TOKEN_F)).json.totals.views, after.views + 1, 'reload dalam sesi sama: sekali sahaja');
+
+  // Peniaga: kad dashboard dan skrin penuh.
+  const m = await newPage({ sid: TOKEN_F });
+  await m.page.goto(`${BASE}/app/`);
+  await m.page.getByRole('heading', { name: 'Statistik 7 hari' }).waitFor();
+  await m.page.locator('.stat-tile', { hasText: 'Lawatan' }).first().waitFor();
+  await m.page.getByRole('link', { name: 'Lihat penuh' }).click();
+  await m.page.getByRole('heading', { level: 1, name: 'Statistik kedai' }).waitFor();
+  await m.page.locator('.chart svg').nth(1).waitFor();
+  assert.equal(await m.page.locator('.chart svg').count(), 2);
+  await m.page.getByRole('button', { name: '90 hari' }).click();
+  await m.page.locator('.chart').first().locator('.chart-hit').nth(89).waitFor();
+  await m.page.locator('.top-list li').first().waitFor();
+  await noHorizontalScroll(m.page);
+  await shot(m.page, '23-statistik-kedai');
+  await m.page.goto(`${BASE}/app/#/tetapan/piksel`);
+  assert.equal(await m.page.getByLabel('Meta Pixel ID (Facebook dan Instagram)').inputValue(), '123456789012345');
+  await shot(m.page, '24-tetapan-piksel');
+  await m.context.close();
+
+  // Kedai Percuma: kad piksel dikunci; skrin statistik hanya 7 hari.
+  const f = await newPage({ sid: TOKEN_E });
+  await f.page.goto(`${BASE}/app/#/statistik`);
+  await f.page.getByRole('button', { name: '90 hari (Pro)' }).waitFor();
+  assert.equal(await f.page.getByRole('button', { name: '90 hari (Pro)' }).isDisabled(), true);
+  await f.page.goto(`${BASE}/app/#/tetapan/piksel`);
+  assert.equal(await f.page.getByLabel('Meta Pixel ID (Facebook dan Instagram)').isDisabled(), true);
+  await f.context.close();
+});
+
+test('Artikel: indeks dan setiap artikel dibuka sebagai halaman statik, tanpa skrol mendatar', async () => {
+  const { context, page } = await newPage();
+  const res = await page.goto(`${BASE}/artikel/`);
+  assert.equal(res.status(), 200);
+  await page.getByRole('heading', { level: 1, name: 'Panduan untuk peniaga online' }).waitFor();
+  const links = await page.locator('.article-list a').evaluateAll((els) => els.map((a) => a.getAttribute('href')));
+  assert.equal(links.length, 5);
+  for (const href of links) {
+    const r = await page.goto(`${BASE}${href}`);
+    assert.equal(r.status(), 200, href);
+    await page.locator('main h1').waitFor();
+    await page.getByRole('link', { name: 'Buka kedai percuma' }).waitFor();
+    await noHorizontalScroll(page);
+  }
+  await shot(page, '25-artikel');
   await context.close();
 });
 

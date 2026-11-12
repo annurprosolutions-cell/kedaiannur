@@ -44,17 +44,6 @@
 .slug-x { width: 44px; height: 44px; border: 0; background: transparent; border-radius: 50%; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: var(--muted); }
 .slug-x svg { width: 16px; height: 16px; }
 
-/* ---- Statistik: carta bar (chart.js) ---- */
-.chart { margin: 0; position: relative; }
-.chart-plot { width: 100%; min-height: 200px; }
-.chart-plot svg { display: block; max-width: 100%; }
-.chart-grid { stroke: #e2e8f0; stroke-width: 1; }
-.chart-base { stroke: #94a3b8; stroke-width: 1; }
-.chart-axis { fill: #475569; font-size: 11px; font-family: var(--font); }
-.chart-hit { fill: transparent; cursor: pointer; outline: none; }
-.chart-hit:focus-visible { fill: rgba(15, 23, 42, 0.06); }
-.chart-tip { position: absolute; pointer-events: none; z-index: 2; padding: 6px 10px; border-radius: 8px; background: #0f172a; color: #fff; font-size: 13px; font-weight: 600; white-space: nowrap; }
-.chart-table summary { cursor: pointer; font-size: 14px; color: var(--muted); min-height: 32px; }
 .remind-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
 .remind-item { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); flex-wrap: wrap; }
 .remind-name { font-weight: 700; }
@@ -67,3 +56,4 @@
 .remind-name { overflow-wrap: anywhere; }
 .remind-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
 .issue-list { margin: 0; padding-left: 20px; }
+.top-list { margin: 0; padding-left: 20px; display: grid; gap: var(--s2); }

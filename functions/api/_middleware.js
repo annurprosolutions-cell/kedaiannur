@@ -13,8 +13,11 @@ const PUBLIC_PREFIX = ['/api/webhooks/']; // webhook BCL (Fasa 6) disahkan denga
 // Laluan mutasi yang menerima badan bukan JSON (gambar binari, Fasa 2).
 const NON_JSON_BODY = new Set(['/api/upload']);
 
+// Awam tetapi tetap melalui semakan Origin dan Content-Type (dihantar oleh halaman kedai sendiri).
+const PUBLIC_BROWSER_PREFIX = ['/api/track/'];
+
 function isPublic(path) {
-  return PUBLIC_EXACT.has(path) || PUBLIC_PREFIX.some((p) => path.startsWith(p));
+  return PUBLIC_EXACT.has(path) || PUBLIC_PREFIX.some((p) => path.startsWith(p)) || PUBLIC_BROWSER_PREFIX.some((p) => path.startsWith(p));
 }
 
 function isServerToServer(path) {

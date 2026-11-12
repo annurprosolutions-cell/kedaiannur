@@ -27,6 +27,8 @@
     "/offline.html",
     "/offline",
     "/marketplace",
-    "/marketplace.html"
+    "/marketplace.html",
+    "/artikel",
+    "/artikel/*"
   ]
 }

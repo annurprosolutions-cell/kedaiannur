@@ -88,6 +88,11 @@ export async function onRequestPatch({ request, env, data }) {
   const { values, errors } = validateShopInput(parsed.value, { partial: true });
   if (errors) return failFields(errors);
 
+  // Piksel iklan: Pro sahaja (ciri sama kelas dengan buang branding). Mengosongkan dibenarkan untuk semua pelan.
+  if (['metaPixel', 'tiktokPixel', 'googleTag'].some((k) => values[k]) && plan.hide_branding !== 1) {
+    return fail(403, 'perlu-pro', 'Piksel iklan hanya untuk pelan Pro.');
+  }
+
   // Templat mesej sendiri (F-12): Pro sahaja. Kosong atau null = templat lalai (dibenarkan untuk semua pelan).
   if ('messageTemplate' in parsed.value) {
     const t = validateTemplate(parsed.value.messageTemplate);

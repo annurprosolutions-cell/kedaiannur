@@ -288,3 +288,14 @@ body.site .chip[aria-pressed="true"] { background: var(--accent); color: var(--a
 .market-cta { margin-top: var(--s6); }
 @media (min-width: 840px) { .market-hero h1 { font-size: 44px; } }
 .market-landing-cta { text-align: center; }
+
+/* ---------- Artikel ---------- */
+.article h1 { font-size: 30px; line-height: 1.2; }
+.article p, .article li { font-size: 17px; line-height: 1.7; }
+.crumb { margin-bottom: var(--s2); }
+.article-cta { margin-top: var(--s6); text-align: center; }
+.article-cta p { color: var(--muted); }
+.article-list { list-style: none; padding: 0; margin: var(--s5) 0 0; display: grid; gap: var(--s3); }
+.article-list a { text-decoration: none; }
+.article-list h2 { font-size: 20px; margin: 0 0 var(--s2); color: var(--text); }
+.article-list p { margin: 0; font-size: 15px; }

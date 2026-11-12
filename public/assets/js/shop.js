@@ -5,6 +5,8 @@
 // Semua teks kedai dan produk melalui textContent (h()), tak pernah innerHTML.
 
 import { h, icon, toast } from './ui.js';
+import { createTracker, takeSource } from './track.js';
+import { initPixels, pixelEvent } from './pixels.js';
 import { DEFAULT_THEME, formatSen, isMapsUrl, isReservedLocally, isThemeColor, normalizeSlug, slugFormatError, socialUrl } from './rules.js';
 import {
   ORDER_LIMITS, addToCart, buildMessage, loadCart, reconcile, removeLine, saveCart, setNote, setQty, summarize, waLink,
@@ -194,6 +196,12 @@ function start(page) {
 
   const filter = { q: '', cat: '' };
 
+  // ---------------- statistik tanpa nama dan piksel iklan (Pro)
+  const tracker = createTracker(slug, { src: takeSource() });
+  tracker.view();
+  const hasPixels = initPixels(shop.px);
+  const pxItem = (item, qty = 1) => ({ id: item.id, name: item.n, priceSen: Number.isInteger(item.p) ? item.p : null, qty });
+
   // ---------------- logo dan favicon
   const logoUrl = imgUrl(shop.logo);
   if (logoUrl && shop.fav) {
@@ -297,6 +305,8 @@ function start(page) {
       return false;
     }
     persist();
+    tracker.cart();
+    pixelEvent('cart', { items: [pxItem(item, qty)], valueSen: Number.isInteger(item.p) ? item.p * qty : null });
     toast(`Ditambah: ${item.n}`, 'success');
     return true;
   }
@@ -358,6 +368,8 @@ function start(page) {
 
   // ---------------- S-03 butiran produk
   function openDetail(item) {
+    tracker.item(item.id);
+    pixelEvent('view', { items: [pxItem(item)] });
     openSheet(item.n, (body, close) => {
       let qty = 1;
       const note = h('input', { class: 'input', type: 'text', maxlength: ORDER_LIMITS.itemNoteMax, placeholder: 'Contoh: tak pedas', id: 'd-note', autocomplete: 'off' });
@@ -500,6 +512,11 @@ function start(page) {
           if (first) first.el.focus();
           return;
         }
+        tracker.order();
+        {
+          const s = summarize(cart, itemsById);
+          pixelEvent('checkout', { items: s.lines.map((l) => ({ id: l.id, name: l.name, priceSen: l.priceSen, qty: l.qty })), valueSen: s.lines.some((l) => l.lineSen !== null) ? s.totalSen : null });
+        }
         after.hidden = false;
       });
       for (const el of [nameIn, addrIn, noteIn]) el.addEventListener('input', update);
@@ -535,6 +552,7 @@ function start(page) {
     { class: 'shop-wrap shop-foot' },
     shop.branding !== false ? h('a', { href: '/' }, 'Dikuasakan oleh Kedai AnnurPro') : null,
     page.report ? h('a', { href: page.report }, 'Lapor kedai ini') : null,
+    hasPixels ? h('p', { class: 'caption pixel-note' }, 'Kedai ini menggunakan piksel pengiklanan (Meta, TikTok atau Google) untuk mengukur iklan. ', h('a', { href: '/privasi' }, 'Dasar Privasi')) : null,
   );
 
   renderChips();

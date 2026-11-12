@@ -223,3 +223,15 @@ textarea.input { padding: var(--s3); min-height: 96px; resize: vertical; line-he
   font-family: var(--font); font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 40vh; overflow-y: auto;
 }
 .d-label { font-weight: 600; font-size: 15px; margin: 0; }
+
+/* ---- Statistik: carta bar (chart.js) ---- */
+.chart { margin: 0; position: relative; }
+.chart-plot { width: 100%; min-height: 200px; }
+.chart-plot svg { display: block; max-width: 100%; }
+.chart-grid { stroke: #e2e8f0; stroke-width: 1; }
+.chart-base { stroke: #94a3b8; stroke-width: 1; }
+.chart-axis { fill: #475569; font-size: 11px; font-family: var(--font); }
+.chart-hit { fill: transparent; cursor: pointer; outline: none; }
+.chart-hit:focus-visible { fill: rgba(15, 23, 42, 0.06); }
+.chart-tip { position: absolute; pointer-events: none; z-index: 2; padding: 6px 10px; border-radius: 8px; background: #0f172a; color: #fff; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.chart-table summary { cursor: pointer; font-size: 14px; color: var(--muted); min-height: 32px; }

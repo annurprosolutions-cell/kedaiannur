@@ -3,7 +3,7 @@
 
 import { isReservedLocally, normalizeSlug, slugFormatError } from '../public/assets/js/rules.js';
 import { snapshotKey } from '../lib/catalog.js';
-import { PAGE_HEADERS, renderShopPage, reportLink } from '../lib/shoppage.js';
+import { pageHeaders, renderShopPage, reportLink } from '../lib/shoppage.js';
 
 let templateCache = null;
 
@@ -44,7 +44,7 @@ export async function onRequestGet({ request, env, params, next }) {
   });
   return new Response(html, {
     status,
-    headers: { ...PAGE_HEADERS, 'Cache-Control': status === 200 ? 'public, max-age=60' : 'no-cache' },
+    headers: { ...pageHeaders(catalog), 'Cache-Control': status === 200 ? 'public, max-age=60' : 'no-cache' },
   });
 }
 
