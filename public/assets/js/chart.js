@@ -1,3 +1,4 @@
+/* global ResizeObserver */
 // Carta bar SVG ringan untuk panel admin (tanpa library). Satu siri setiap carta, satu paksi.
 // Spesifikasi (skill dataviz): bar <= 24px dengan jarak 2px, hujung data bulat 4px dan rata di garis dasar,
 // grid garis rambut, label teks guna warna teks (bukan warna data), tooltip bila hover/fokus/sentuh, dan jadual sebagai
