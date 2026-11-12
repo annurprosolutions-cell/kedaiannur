@@ -21,6 +21,7 @@ Stack: Cloudflare Pages (frontend statik tanpa build step) + Pages Functions (AP
 | P1 | Pusingan 1: jenama AnnurPro (favicon, ikon PWA, OG), maklumat hubungan kedai, senarai semak setup, panduan dan templat banner, statistik admin dengan carta, peringatan tamat melalui WhatsApp | Siap, live |
 | P2 | Pusingan 2: Marketplace (jenis kedai, Pro automatik, Percuma pilih masuk, syarat kelengkapan, Pilihan Admin), sitemap.xml, JSON-LD kedai, kod QR dan poster A5 (Fasa 10) | Siap, live |
 | P3 | Pusingan 3: statistik pelawat tanpa nama (Fasa 11), carta peniaga (Percuma 7 hari, Pro 90 hari), piksel iklan Meta/TikTok/Google (Pro), 5 artikel SEO | Kod siap, ujian lulus. Perlu `db/0006_statistik_piksel.sql` di D1 sebelum deploy |
+| P4 | Pusingan 4: artikel diurus superadmin (editor, gambar, SEO), tab Artikel di menu sale page, seksyen Artikel terkini, RSS | Kod siap, ujian lulus. Perlu `db/0007_artikel.sql` di D1 sebelum deploy |
 | 8b | Tema baharu landing (gelap midnight navy + aksen amber, mod cerah), PWA (manifest, service worker, ikon, offline, kad Pasang app) | Kod siap, ujian lulus |
 
 ## Struktur
@@ -315,7 +316,26 @@ Nota operasi:
   siap. CSP halaman kedai diperluas hanya untuk domain piksel yang dipasang kedai itu (`pageHeaders` dalam
   `lib/shoppage.js`). Acara: PageView, ViewContent, AddToCart, InitiateCheckout (RM). Notis piksel di kaki kedai;
   Dasar Privasi dan Terma dikemas kini. Bila Pro tamat, piksel berhenti diterbitkan.
-- **Artikel** `/artikel/` (statik): 5 artikel BM; senarai dalam `lib/articles.js` (sitemap dan ujian).
+- **Artikel**: asalnya 5 fail statik; kini diurus dari panel admin (lihat Pusingan 4).
+
+## Pusingan 4: artikel diurus superadmin
+
+- **Data**: jadual `articles` (`db/0007_artikel.sql`), termasuk 5 artikel asal yang dipindah dari fail statik.
+  Kandungan ialah Markdown ringkas yang ditukar ke HTML selamat oleh `public/assets/js/artikel.js` (dikongsi server
+  dan editor): `##`/`###`, **tebal**, *condong*, senarai, petikan, pautan dan gambar `![alt](url "kapsyen")`.
+  Semua teks di-escape; pautan dan gambar hanya https, http (pautan), `/` atau `#`.
+- **Admin** `/admin/#/artikel`: senarai, editor dengan toolbar, tab Pratonton, gambar utama 1200 x 630 (cropper)
+  dan gambar dalam kandungan (dimampat di browser, `POST /api/admin/upload?kind=cover|inline`, R2 `articles/`).
+  Panel SEO: slug, tajuk SEO, meta description (pembilang aksara), kata kunci fokus, pratonton hasil Google dan
+  senarai semakan. Suis Artikel Pilihan dan "Jangan indeks". Draf hanya boleh dilihat superadmin
+  (`/artikel/<slug>?pratonton=1`, noindex). Amaran sebelum keluar jika belum disimpan. Semua tindakan dalam log audit.
+- **Awam** (dijana server, `functions/artikel/`, templat `public/article.html`): `/artikel/` dan `/artikel/<slug>`
+  dengan meta description, canonical, Open Graph/Twitter, JSON-LD BlogPosting dan BreadcrumbList, robots, kandungan
+  automatik (3 subtajuk ke atas), masa membaca dan artikel lain. `/artikel/rss.xml`, sitemap dari D1 (kecuali noindex).
+  URL lama `/artikel/<slug>.html` dihala 301. Tab **Artikel** di menu semua laman awam dan seksyen
+  "Artikel terkini" di landing page (`GET /api/articles`, Pilihan dahulu).
+- **Gambar**: gambar `articles/` yang tiada artikel merujuknya dipadam selepas 6 jam; padam artikel membuang gambarnya.
+- **Tukar slug** artikel yang sudah diterbitkan memecahkan link lama (editor memberi amaran).
 
 ## Gambar: cropper
 

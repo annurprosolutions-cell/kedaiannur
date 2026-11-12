@@ -1872,7 +1872,7 @@ test('Statistik dan piksel: lawatan dari QR, produk, troli dan order dikira; pik
   await f.context.close();
 });
 
-test('Artikel: indeks dan setiap artikel dibuka sebagai halaman statik, tanpa skrol mendatar', async () => {
+test('Artikel: 5 artikel asal dari D1, indeks dan setiap artikel dibuka tanpa skrol mendatar', async () => {
   const { context, page } = await newPage();
   const res = await page.goto(`${BASE}/artikel/`);
   assert.equal(res.status(), 200);
@@ -1887,7 +1887,88 @@ test('Artikel: indeks dan setiap artikel dibuka sebagai halaman statik, tanpa sk
     await noHorizontalScroll(page);
   }
   await shot(page, '25-artikel');
+  // URL lama fail statik dihala ke URL kanonik.
+  const old = await page.goto(`${BASE}/artikel/kod-qr-untuk-gerai-dan-kaunter.html`);
+  assert.equal(new URL(old.url()).pathname, '/artikel/kod-qr-untuk-gerai-dan-kaunter');
   await context.close();
+});
+
+test('Artikel: superadmin tulis dengan toolbar, gambar, semakan SEO dan terbit; muncul di /artikel, tab menu dan landing page', async () => {
+  const { context, page } = await newPage({ width: 1280, height: 900, sid: TOKEN_M });
+  page.on('dialog', (d) => d.accept());
+  await page.goto(`${BASE}/admin/#/artikel`);
+  await page.getByRole('heading', { level: 1, name: 'Artikel' }).waitFor();
+  await page.locator('.data-table tbody tr').first().waitFor();
+  assert.equal(await page.locator('.data-table tbody tr').count(), 5);
+  await shot(page, '26-admin-artikel');
+
+  await page.getByRole('link', { name: 'Tulis artikel baru' }).click();
+  await page.getByLabel('Tajuk artikel').fill('Cara jual kuih raya secara online');
+  assert.equal(await page.getByLabel('Slug (alamat artikel)').inputValue(), 'cara-jual-kuih-raya-secara-online');
+  const body = page.getByLabel('Kandungan', { exact: true });
+  await page.getByRole('button', { name: 'Tebal' }).click();
+  assert.equal(await body.inputValue(), '**teks**');
+  await body.fill('Perenggan pertama tentang kuih raya online untuk peniaga.\n\n## Sediakan senarai kuih\n\nIsi pertama.\n\n## Kongsi link kuih raya online\n\nRujuk [katalog online](/artikel/katalog-online-order-whatsapp).\n\n');
+  await body.press('End');
+  await page.locator('.editor-main input[type=file]').setInputFiles(bigJpeg);
+  await page.waitForFunction(() => document.querySelector('#a-body').value.includes('![Terangkan gambar ini](https://media.annurpro.com/articles/'), null, { timeout: 60000 });
+
+  await page.locator('.editor-side input[type=file]').setInputFiles(bigJpeg);
+  const crop = page.getByRole('dialog', { name: 'Potong gambar utama' });
+  await crop.waitFor({ timeout: 60000 });
+  await crop.getByRole('button', { name: 'Guna gambar' }).click();
+  await crop.waitFor({ state: 'detached' });
+  await page.locator('.cover-preview:not([hidden])').waitFor({ timeout: 60000 });
+  await page.getByLabel('Teks alt gambar utama').fill('Kuih raya tersusun dalam balang');
+  await page.getByLabel(/Meta description/).fill('Panduan ringkas menjual kuih raya secara online: senarai kuih, gambar, harga dan terima order melalui WhatsApp.');
+  await page.getByLabel('Kata kunci fokus').fill('kuih raya online');
+  assert.match(await page.locator('.seo-head .badge').textContent(), /^\d+\/\d+ lulus$/);
+  assert.equal(await page.locator('.serp-title').textContent(), 'Cara jual kuih raya secara online | Kedai AnnurPro');
+  await page.getByRole('button', { name: 'Pratonton' }).click();
+  await page.locator('.md-preview h2', { hasText: 'Sediakan senarai kuih' }).waitFor();
+  await page.getByRole('button', { name: 'Tulis' }).click();
+  await shot(page, '27-admin-artikel-editor');
+
+  await page.getByRole('button', { name: 'Terbitkan' }).click();
+  await page.locator('.publish-status', { hasText: 'Diterbitkan' }).waitFor();
+  assert.match(new URL(page.url()).hash, /^#\/artikel\/[0-9a-f-]{36}$/);
+  await context.close();
+
+  // Awam: halaman artikel, senarai, landing page dan tab menu.
+  const pub = await newPage();
+  const r = await pub.page.goto(`${BASE}/artikel/cara-jual-kuih-raya-secara-online`);
+  assert.equal(r.status(), 200);
+  await pub.page.getByRole('heading', { level: 1, name: 'Cara jual kuih raya secara online' }).waitFor();
+  assert.equal(await pub.page.locator('.article-cover img').getAttribute('alt'), 'Kuih raya tersusun dalam balang');
+  assert.equal(await pub.page.locator('.article-body figure img').count(), 1);
+  await noHorizontalScroll(pub.page);
+  await shot(pub.page, '28-artikel-baru');
+  await pub.page.goto(`${BASE}/`);
+  const section = pub.page.locator('#artikel');
+  await section.locator('.article-card').first().waitFor();
+  assert.equal(await section.locator('h3').first().textContent(), 'Cara jual kuih raya secara online');
+  assert.equal(await section.locator('.article-card').count(), 3);
+  await section.screenshot(SHOTS ? { path: join(SHOTS, '30-landing-artikel.png') } : {});
+  await noHorizontalScroll(pub.page);
+  await pub.page.getByRole('button', { name: 'Buka menu' }).click();
+  await pub.page.locator('#menu-panel').getByRole('link', { name: 'Artikel' }).click();
+  await pub.page.waitForURL(`${BASE}/artikel/`);
+  assert.equal(await pub.page.locator('.article-list .article-card').count(), 6);
+  await pub.context.close();
+
+  const wide = await newPage({ width: 1280, height: 800 });
+  await wide.page.goto(`${BASE}/`);
+  await wide.page.locator('.site-nav').getByRole('link', { name: 'Artikel' }).waitFor();
+  await noHorizontalScroll(wide.page);
+  await wide.context.close();
+
+  // Editor di phone: tiada skrol mendatar.
+  const phone = await newPage({ sid: TOKEN_M });
+  await phone.page.goto(`${BASE}/admin/#/artikel/baru`);
+  await phone.page.getByLabel('Tajuk artikel').waitFor();
+  await noHorizontalScroll(phone.page);
+  await shot(phone.page, '29-admin-artikel-phone');
+  await phone.context.close();
 });
 
 // ================================================================ Tema dan PWA

@@ -9,6 +9,7 @@ import { formatBytes } from './forms.js';
 import { formatSen } from './rules.js';
 import { formatDate } from './plannotice.js';
 import { barChart } from './chart.js';
+import { canLeaveEditor, viewArticleEditor, viewArticles } from './adminartikel.js';
 
 const root = document.getElementById('admin');
 let me = null;
@@ -21,6 +22,7 @@ const ACTION_LABEL = {
   add_reserved_slug: 'Tambah slug reserved', remove_reserved_slug: 'Buang slug reserved',
   remind: 'Peringatan WhatsApp', market_hide: 'Sembunyi dari Marketplace', market_show: 'Papar di Marketplace',
   market_feature: 'Jadikan Pilihan Admin', market_unfeature: 'Buang Pilihan Admin', bcl_payment: 'Bayaran BCL', apply_unmatched: 'Bayaran awal diterapkan',
+  article_create: 'Cipta artikel', article_update: 'Kemas kini artikel', article_publish: 'Terbitkan artikel', article_unpublish: 'Tarik balik artikel', article_delete: 'Padam artikel',
 };
 
 const planBadge = (st) => h('span', { class: STATE_CLASS[st.state] || 'badge' }, STATE_LABEL[st.state] || st.state);
@@ -119,7 +121,7 @@ function shell(active, content) {
         h('a', { class: 'brand', href: '#/' }, h('img', { class: 'brand-mark', src: '/assets/brand/annurpro-mark-64.webp', alt: '', width: 28, height: 28 }), h('span', {}, 'Superadmin')),
         h('span', { class: 'admin-user caption' }, me.user.email, h('button', { type: 'button', class: 'btn btn-secondary btn-sm', onclick: logout }, 'Log keluar')),
       ),
-      h('nav', { class: 'admin-tabs', 'aria-label': 'Navigasi superadmin' }, tab('#/', 'Kedai', 'kedai'), tab('#/statistik', 'Statistik', 'statistik'), tab('#/selenggara', 'Bayaran dan penyelenggaraan', 'selenggara')),
+      h('nav', { class: 'admin-tabs', 'aria-label': 'Navigasi superadmin' }, tab('#/', 'Kedai', 'kedai'), tab('#/statistik', 'Statistik', 'statistik'), tab('#/artikel', 'Artikel', 'artikel'), tab('#/selenggara', 'Bayaran dan penyelenggaraan', 'selenggara')),
       h('main', { class: 'admin-main stack' }, content),
     ),
   );
@@ -133,10 +135,19 @@ function route() {
   if (a === 'kedai' && b) return shell('kedai', viewShop(decodeURIComponent(b)));
   if (a === 'selenggara') return shell('selenggara', viewMaintenance());
   if (a === 'statistik') return shell('statistik', viewStats());
+  if (a === 'artikel') return shell('artikel', b ? viewArticleEditor({ onError }, decodeURIComponent(b)) : viewArticles({ onError }));
   return shell('kedai', viewShops());
 }
 
-window.addEventListener('hashchange', () => me && me.isAdmin && route());
+window.addEventListener('hashchange', (e) => {
+  if (!me || !me.isAdmin) return;
+  // Editor artikel dengan perubahan belum disimpan: minta pengesahan, jika batal kembali ke hash asal.
+  if (!canLeaveEditor()) {
+    history.replaceState(null, '', new URL(e.oldURL).hash || '#/');
+    return;
+  }
+  route();
+});
 
 function loading() {
   return h('div', { class: 'skeleton', style: 'height:200px' });

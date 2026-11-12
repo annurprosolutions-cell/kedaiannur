@@ -8,7 +8,7 @@
 //    selepas deploy. Cache hanya dipakai bila rangkaian gagal.
 //  - Tiada data peribadi dalam cache: HTML dan aset statik sahaja. Data peniaga hanya melalui /api/* yang tak di-cache.
 
-const VERSION = 'v9';
+const VERSION = 'v10';
 const CACHE = `kedai-${VERSION}`;
 const PRECACHE = [
   '/offline.html',

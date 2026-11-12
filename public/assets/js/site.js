@@ -62,6 +62,41 @@ async function fillPlans() {
   }
 }
 
+// Seksyen "Artikel terkini" di landing page: diisi dari /api/articles, kekal tersembunyi jika tiada artikel atau API gagal.
+async function homeArticles() {
+  const section = document.querySelector('[data-home-articles]');
+  const list = document.querySelector('[data-home-articles-list]');
+  if (!section || !list) return;
+  try {
+    const { articles } = await getJson('/api/articles?limit=3');
+    if (!articles || !articles.length) return;
+    const el = (tag, attrs = {}, text) => {
+      const n = document.createElement(tag);
+      for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+      if (text != null) n.textContent = text;
+      return n;
+    };
+    list.replaceChildren(
+      ...articles.map((a) => {
+        const li = el('li', { class: 'card article-card' });
+        const href = `/artikel/${encodeURIComponent(a.slug)}`;
+        const media = el('a', { href, tabindex: '-1', 'aria-hidden': 'true' });
+        if (a.cover) media.append(el('img', { class: 'article-thumb', src: a.cover, alt: '', loading: 'lazy', decoding: 'async', width: '1200', height: '630' }));
+        else media.append(el('span', { class: 'article-thumb-ph' }, 'A'));
+        const body = el('div', { class: 'article-card-body' });
+        const link = el('a', { href });
+        link.append(el('h3', {}, a.title));
+        body.append(link, el('p', { class: 'muted' }, a.description));
+        li.append(media, body);
+        return li;
+      }),
+    );
+    section.hidden = false;
+  } catch {
+    /* seksyen kekal tersembunyi */
+  }
+}
+
 // Butang "Lihat contoh kedai" hanya dipaparkan jika kedai /contoh benar-benar wujud.
 async function demoLink() {
   const btn = document.querySelector('[data-demo]');
@@ -171,3 +206,4 @@ registerServiceWorker();
 fillSupport();
 fillPlans();
 demoLink();
+homeArticles();

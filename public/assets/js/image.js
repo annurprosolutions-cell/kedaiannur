@@ -7,6 +7,9 @@ export const SPECS = {
   product: { maxBytes: 400 * 1024, maxSide: 1000 },
   thumb: { maxBytes: 80 * 1024, maxSide: 400 },
   logo: { maxBytes: 100 * 1024, maxSide: 512 },
+  // Artikel (superadmin): gambar utama 1200 x 630 (saiz og:image), gambar dalam kandungan tanpa potongan.
+  cover: { maxBytes: 300 * 1024, width: 1200, height: 630 },
+  inline: { maxBytes: 300 * 1024, maxSide: 1200 },
 };
 
 const MAX_INPUT_BYTES = 30 * 1024 * 1024;
@@ -72,10 +75,11 @@ async function encode(canvas, quality) {
 }
 
 // Nisbah bingkai potongan setiap jenis (lebar / tinggi). Halaman kedai papar produk 1:1 dan banner 2:1.
-export const ASPECT = { banner: 2, product: 1, thumb: 1, logo: 1 };
+export const ASPECT = { banner: 2, product: 1, thumb: 1, logo: 1, cover: 1200 / 630 };
 
 // Potongan lalai: kawasan terbesar di tengah dengan nisbah jenis itu (sama seperti object-fit: cover).
 export function centerCrop(kind, srcW, srcH) {
+  if (kind === 'inline') return { sx: 0, sy: 0, sw: srcW, sh: srcH }; // gambar penuh, tiada potongan
   const a = ASPECT[kind] || 1;
   let sw = srcW;
   let sh = srcH;
@@ -88,9 +92,9 @@ export function centerCrop(kind, srcW, srcH) {
 function plan(kind, srcW, srcH, crop) {
   const spec = SPECS[kind];
   const c = crop ? clampCrop(crop, srcW, srcH) : centerCrop(kind, srcW, srcH);
-  if (kind === 'banner') {
+  if (spec.width && spec.height) {
     const outW = Math.min(spec.width, c.sw);
-    return { ...c, outW, outH: Math.max(1, Math.round(outW / 2)) };
+    return { ...c, outW, outH: Math.max(1, Math.round((outW * spec.height) / spec.width)) };
   }
   const ratio = Math.min(1, spec.maxSide / Math.max(c.sw, c.sh));
   return { ...c, outW: Math.max(1, Math.round(c.sw * ratio)), outH: Math.max(1, Math.round(c.sh * ratio)) };

@@ -1,14 +1,13 @@
-// Pusingan 3: statistik pelawat tanpa nama, piksel iklan (Pro), artikel SEO.
+// Pusingan 3: statistik pelawat tanpa nama dan piksel iklan (Pro). Artikel: tests/artikel.test.js.
 
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { callApi } from './helpers/pages.js';
 import { makeEnv, makeUser, insertShop } from './helpers/seed.js';
 import { cleanEvents, isBot, mytDay } from '../lib/stats.js';
 import { normalizePixel } from '../public/assets/js/rules.js';
 import { PAGE_CSP, pageHeaders } from '../lib/shoppage.js';
-import { ARTICLES } from '../lib/articles.js';
 
 const UA = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Mobile Safari/537.36';
 let env;
@@ -129,18 +128,4 @@ test('admin stats: jumlah lawatan 30 hari dan kedai paling dilawati', async () =
   assert.equal(res.json.totals.views30, 2);
   assert.equal(res.json.totals.orders30, 1);
   assert.deepEqual(res.json.topShops.map((s) => [s.slug, s.views, s.orders]), [['kedai-a', 2, 1]]);
-});
-
-test('artikel: setiap artikel wujud, ada tajuk dan kanonik betul, dan disenaraikan dalam sitemap dan indeks', async () => {
-  const index = readFileSync(new URL('../public/artikel/index.html', import.meta.url), 'utf8');
-  const sm = (await callApi(env, 'GET', '/sitemap.xml', { origin: null })).text;
-  for (const art of ARTICLES) {
-    const file = new URL(`../public/artikel/${art.slug}.html`, import.meta.url);
-    assert.ok(existsSync(file), art.slug);
-    const html = readFileSync(file, 'utf8');
-    assert.ok(html.includes(`<link rel="canonical" href="https://kedai.annurpro.com/artikel/${art.slug}">`), `${art.slug} kanonik`);
-    assert.ok(html.includes(`<h1>${art.title}</h1>`), `${art.slug} tajuk`);
-    assert.ok(index.includes(`href="/artikel/${art.slug}"`), `${art.slug} dalam indeks`);
-    assert.ok(sm.includes(`/artikel/${art.slug}</loc>`), `${art.slug} dalam sitemap`);
-  }
 });

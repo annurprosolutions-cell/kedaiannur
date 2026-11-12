@@ -50,8 +50,9 @@ export function api(path, { method = 'GET', body } = {}) {
 }
 
 // Muat naik gambar yang sudah dimampatkan (Blob image/webp atau image/jpeg). Pulangkan { key, bytes, type }.
-export function upload(kind, blob) {
-  return send(`/api/upload?kind=${encodeURIComponent(kind)}`, {
+// path lain: /api/admin/upload untuk gambar artikel (superadmin), pulangkan juga { url }.
+export function upload(kind, blob, path = '/api/upload') {
+  return send(`${path}?kind=${encodeURIComponent(kind)}`, {
     method: 'POST',
     credentials: 'same-origin',
     headers: { Accept: 'application/json', 'Content-Type': blob.type },

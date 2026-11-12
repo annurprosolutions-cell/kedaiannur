@@ -1,14 +1,20 @@
-// GET /sitemap.xml: halaman awam platform dan kedai yang disenaraikan di Marketplace (persetujuan peniaga).
+// GET /sitemap.xml: halaman awam platform, artikel diterbitkan (bukan noindex) dan kedai yang disenaraikan di Marketplace (persetujuan peniaga).
 // Kedai yang tak disenaraikan masih boleh diindeks melalui pautan biasa, cuma tak diiklankan dalam sitemap.
 
 import { getMarketIndex } from '../lib/market.js';
-import { ARTICLES } from '../lib/articles.js';
+import { listPublished } from '../lib/articles.js';
 
 const esc = (s) => String(s).replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' })[c]);
 
 export async function onRequestGet({ request, env, waitUntil }) {
   const origin = new URL(request.url).origin;
   let shops = [];
+  let articles = [];
+  try {
+    articles = await listPublished(env, { limit: 500, indexableOnly: true });
+  } catch (err) {
+    console.error('sitemap: senarai artikel gagal', err && err.message ? err.message : err);
+  }
   try {
     shops = (await getMarketIndex(env, waitUntil)).shops || [];
   } catch (err) {
@@ -19,7 +25,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
     { loc: `${origin}/marketplace`, priority: '0.9' },
     ...shops.map((s) => ({ loc: `${origin}/${encodeURIComponent(s.s)}`, lastmod: String(s.u || '').slice(0, 10), priority: '0.7' })),
     { loc: `${origin}/artikel/`, priority: '0.6' },
-    ...ARTICLES.map((a) => ({ loc: `${origin}/artikel/${a.slug}`, lastmod: a.date, priority: '0.5' })),
+    ...articles.map((a) => ({ loc: `${origin}/artikel/${encodeURIComponent(a.slug)}`, lastmod: String(a.updated_at || '').slice(0, 10), priority: '0.5' })),
     { loc: `${origin}/privasi`, priority: '0.2' },
     { loc: `${origin}/terma`, priority: '0.2' },
   ];

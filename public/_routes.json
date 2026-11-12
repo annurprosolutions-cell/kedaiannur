@@ -18,6 +18,8 @@
     "/assets/*",
     "/shop",
     "/shop.html",
+    "/article",
+    "/article.html",
     "/privasi",
     "/privasi.html",
     "/terma",
@@ -27,8 +29,6 @@
     "/offline.html",
     "/offline",
     "/marketplace",
-    "/marketplace.html",
-    "/artikel",
-    "/artikel/*"
+    "/marketplace.html"
   ]
 }

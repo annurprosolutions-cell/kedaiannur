@@ -30,10 +30,11 @@ export function openCropper(bitmap, kind, { title } = {}) {
       h(
         'div',
         { class: 'crop-sheet stack-sm' },
-        h('h2', { id: 'crop-title' }, title || { banner: 'Potong banner', logo: 'Potong logo' }[kind] || 'Potong gambar produk'),
+        h('h2', { id: 'crop-title' }, title || { banner: 'Potong banner', logo: 'Potong logo', cover: 'Potong gambar utama' }[kind] || 'Potong gambar produk'),
         h('p', { class: 'caption' }, {
           banner: 'Banner dipaparkan dalam nisbah 2:1 di atas kedai.',
           logo: 'Logo dipaparkan dalam bulatan di atas kedai. Pastikan bahagian penting berada di tengah.',
+          cover: 'Gambar utama artikel 1200 x 630, juga dipaparkan bila link dikongsi di WhatsApp dan Facebook.',
         }[kind] || 'Gambar produk dipaparkan dalam bentuk segi empat di kedai.'),
         frame,
         h('div', { class: 'crop-zoom-row' }, h('span', { 'aria-hidden': 'true' }, '−'), zoomIn, h('span', { 'aria-hidden': 'true' }, '+'), resetBtn),
