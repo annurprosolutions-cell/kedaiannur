@@ -18,7 +18,7 @@ test('kedai contoh: seed SQL sah, diulang tanpa ralat, snapshot ada kategori dan
   await publishSnapshot(env, 'shop-demo-contoh');
   const snap = env.MEDIA.json('catalog/contoh.json');
   assert.equal(snap.shop.name, 'Kedai Contoh');
-  assert.equal(snap.categories.length, 3);
-  assert.equal(snap.products.length, 9);
+  assert.equal(snap.cats.length, 3);
+  assert.equal(snap.items.length, 9);
   assert.equal(env.DB.sqlite.prepare("SELECT catalog_dirty d FROM shops WHERE slug = 'contoh'").get().d, 0);
 });
