@@ -1,0 +1,42 @@
+{
+  "fps": 30,
+  "duration": 60,
+  "scenes": {
+    "hook": [0, 5],
+    "reveal": [5, 10],
+    "setup": [10, 20],
+    "produk": [20, 28],
+    "kongsi": [28, 34],
+    "pelanggan": [34, 45.8],
+    "hantar": [45.8, 47.5],
+    "wasap": [47.5, 56],
+    "cta": [56, 60]
+  },
+  "sfx": [
+    { "t": 0.35, "type": "blip" }, { "t": 0.85, "type": "blip" }, { "t": 1.25, "type": "blip" },
+    { "t": 1.6, "type": "blip" }, { "t": 1.9, "type": "blip" }, { "t": 2.15, "type": "blip" },
+    { "t": 2.4, "type": "blip" }, { "t": 2.6, "type": "blip" }, { "t": 2.8, "type": "blip" },
+    { "t": 3.0, "type": "blip" }, { "t": 3.2, "type": "blip" }, { "t": 3.4, "type": "blip" },
+    { "t": 3.55, "type": "blip" }, { "t": 3.7, "type": "blip" }, { "t": 3.85, "type": "blip" },
+    { "t": 4.0, "type": "blip" }, { "t": 4.12, "type": "blip" }, { "t": 4.24, "type": "blip" },
+    { "t": 4.36, "type": "blip" }, { "t": 4.46, "type": "blip" }, { "t": 4.56, "type": "blip" },
+    { "t": 4.0, "type": "riser", "len": 1.0 },
+    { "t": 5.0, "type": "boom" },
+    { "t": 12.2, "type": "tap" }, { "t": 17.0, "type": "tap" }, { "t": 17.75, "type": "chime" },
+    { "t": 20.6, "type": "pop" }, { "t": 23.6, "type": "tap" },
+    { "t": 24.2, "type": "pop" }, { "t": 24.6, "type": "pop" }, { "t": 25.0, "type": "pop" },
+    { "t": 25.4, "type": "pop" }, { "t": 25.8, "type": "pop" }, { "t": 26.2, "type": "pop" },
+    { "t": 28.4, "type": "whoosh" }, { "t": 30.6, "type": "pop" }, { "t": 31.0, "type": "pop" }, { "t": 31.4, "type": "pop" },
+    { "t": 33.3, "type": "whoosh" }, { "t": 34.0, "type": "pop" },
+    { "t": 37.0, "type": "tap" }, { "t": 37.6, "type": "tap" }, { "t": 38.4, "type": "tap" },
+    { "t": 39.9, "type": "tap" }, { "t": 40.4, "type": "tap" }, { "t": 41.2, "type": "tap" },
+    { "t": 43.4, "type": "tap" }, { "t": 45.6, "type": "tap" },
+    { "t": 45.7, "type": "whoosh" },
+    { "t": 47.45, "type": "ding" },
+    { "t": 50.1, "type": "tap" }, { "t": 50.3, "type": "pop" },
+    { "t": 54.0, "type": "sent" },
+    { "t": 54.2, "type": "riser", "len": 1.8 },
+    { "t": 56.0, "type": "boom" }, { "t": 56.25, "type": "chime" }
+  ],
+  "music": { "bpm": 120, "start": 5.0, "end": 60.0 }
+}

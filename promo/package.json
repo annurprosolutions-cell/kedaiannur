@@ -1,0 +1,7 @@
+{
+  "name": "kedai-annurpro-promo",
+  "private": true,
+  "type": "module",
+  "description": "Video promosi TikTok 60 saat (Three.js, dirakam frame demi frame). Lihat README.md.",
+  "dependencies": { "three": "0.170.0" }
+}
