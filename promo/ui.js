@@ -88,7 +88,7 @@ function statusBar(c, light = false, time = '9:41') {
 
 // ------------------------------------------------------------------ gambar produk (vektor)
 
-const PRODUK = {
+export const PRODUK = {
   lapis: { name: 'Kuih lapis', price: 1200, bg: '#fde8ef' },
   karipap: { name: 'Karipap pusing', price: 800, bg: '#fef3c7' },
   serimuka: { name: 'Seri muka', price: 1500, bg: '#dcfce7' },
@@ -98,7 +98,7 @@ const PRODUK = {
 };
 const rm = (sen) => `RM${(sen / 100).toFixed(2)}`;
 
-function illus(c, key, x, y, w, h) {
+export function illus(c, key, x, y, w, h) {
   const p = PRODUK[key];
   c.save();
   c.beginPath(); c.rect(x, y, w, h); c.clip();

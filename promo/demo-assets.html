@@ -1,0 +1,43 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Aset demo</title></head>
+<body>
+<script type="module">
+import { illus, PRODUK } from '/ui.js';
+const F = 'Inter, system-ui, sans-serif';
+function canvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+const out = {};
+for (const key of Object.keys(PRODUK)) {
+  const c = canvas(1000, 1000);
+  illus(c.getContext('2d'), key, 0, 0, 1000, 1000);
+  out[`produk-${key}`] = c.toDataURL('image/webp', 0.9);
+}
+{ // banner 1600 x 800
+  const c = canvas(1600, 800); const x = c.getContext('2d');
+  const g = x.createLinearGradient(0, 0, 1600, 800); g.addColorStop(0, '#0f766e'); g.addColorStop(1, '#0b3b4a');
+  x.fillStyle = g; x.fillRect(0, 0, 1600, 800);
+  x.fillStyle = 'rgba(251,191,36,0.95)'; x.beginPath(); x.arc(1330, 250, 230, 0, 7); x.fill();
+  x.fillStyle = 'rgba(255,255,255,0.10)'; x.beginPath(); x.arc(150, 760, 330, 0, 7); x.fill();
+  const items = [['lapis', 1060, 330, 300], ['karipap', 1330, 470, 300], ['teh', 1160, 560, 260]];
+  for (const [k, cx, cy, s] of items) {
+    const t = document.createElement('canvas'); t.width = t.height = s;
+    const tx = t.getContext('2d'); illus(tx, k, 0, 0, s, s);
+    x.save(); x.beginPath(); x.arc(cx, cy, s / 2, 0, 7); x.clip(); x.drawImage(t, cx - s / 2, cy - s / 2); x.restore();
+    x.strokeStyle = '#fff'; x.lineWidth = 8; x.beginPath(); x.arc(cx, cy, s / 2, 0, 7); x.stroke();
+  }
+  x.fillStyle = 'rgba(255,255,255,0.85)'; x.font = `600 44px ${F}`; x.fillText('Kuih dan minuman', 110, 290);
+  x.fillStyle = '#fff'; x.font = `800 112px ${F}`; x.fillText('Segar setiap', 110, 420); x.fillText('pagi', 110, 540);
+  x.fillStyle = '#fbbf24'; x.beginPath(); x.roundRect(110, 600, 600, 90, 45); x.fill();
+  x.fillStyle = '#0f172a'; x.font = `800 42px ${F}`; x.fillText('Order terus ke WhatsApp', 148, 660);
+  out['banner-1600x800'] = c.toDataURL('image/webp', 0.88);
+}
+{ // logo 512
+  const c = canvas(512, 512); const x = c.getContext('2d');
+  x.fillStyle = '#0f766e'; x.fillRect(0, 0, 512, 512);
+  x.fillStyle = '#fbbf24'; x.beginPath(); x.arc(256, 256, 190, 0, 7); x.fill();
+  x.fillStyle = '#0f172a'; x.font = `800 190px ${F}`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('KC', 256, 270);
+  out['logo-512'] = c.toDataURL('image/webp', 0.9);
+}
+window.assets = out;
+window.ready = true;
+</script>
+</body></html>
