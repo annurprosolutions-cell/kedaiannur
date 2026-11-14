@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import qrcode from '/vendor/qrcode-generator-2.0.4.js';
-import { LW, LH, screenMerchant, screenCustomer, setMark, lerp, easeOut, easeInOut, easeBack } from './ui.js';
+import { LW, LH, screenMerchant, screenCustomer, setMark, setPhotos, lerp, easeOut, easeInOut, easeBack } from './ui.js';
 
 const W = 1080;
 const H = 1920;
@@ -163,9 +163,9 @@ const phoneC = makePhone(0xd6dae2, 0.3);
 
 // ------------------------------------------------------------------ gelembung chat (hook)
 const MESSAGES = [
-  ['Kak ada kuih lapis?', 0], ['Harga berapa ya?', 0], ['Boleh COD tak?', 1], ['Nak order 2 karipap', 0],
+  ['Abang ada burger beef?', 0], ['Harga berapa ya?', 0], ['Boleh COD tak?', 1], ['Nak order 2 burger', 0],
   ['Stok ada lagi?', 0], ['Hantar gambar boleh?', 1], ['Tadi saya dah tanya...', 0], ['Bank mana nak transfer?', 1],
-  ['Berapa semua?', 0], ['Ada saiz lain?', 0], ['Hello? 👀', 1], ['Lambat balas...', 0],
+  ['Berapa semua?', 0], ['Ada burger ayam?', 0], ['Hello?', 1], ['Lambat balas...', 0],
 ];
 function bubbleTexture(label, mine) {
   const c = document.createElement('canvas');
@@ -453,9 +453,18 @@ function drawVignette() {
 
 // ------------------------------------------------------------------ rangka demi rangka
 let qr = null;
+let WARP = [[0, 0], [60, 60]];
+const warp = (to) => {
+  for (let i = 0; i < WARP.length - 1; i++) {
+    const [a0, b0] = WARP[i]; const [a1, b1] = WARP[i + 1];
+    if (to <= a1 || i === WARP.length - 2) return b0 + (b1 - b0) * clamp((to - a0) / (a1 - a0), 0, 1);
+  }
+  return to;
+};
 const tmp = new THREE.Vector3();
 
-function renderFrame(t) {
+function renderFrame(tOut) {
+  const t = warp(tOut);
   // kamera
   const [az, el, d, tx, ty] = camAt(t);
   const shake = t < 4.8 ? 0.012 * seg(t, 0.5, 4.5) : 0;
@@ -544,6 +553,14 @@ window.renderFrame = (t) => { renderFrame(t); return out.toDataURL('image/jpeg',
   img.src = '/brand/annurpro-mark.png';
   await img.decode().catch(() => {});
   setMark(img);
+  const tl = await (await fetch('/timeline.json')).json();
+  if (tl.vo) WARP = tl.vo.anchors.map(([vo, ti]) => [vo / tl.vo.tempo, ti]);
+  const photos = {};
+  await Promise.all(['banner', 'logo', 'classic', 'crispy', 'bbq', 'spicy', 'sirap'].map(async (k) => {
+    const im = new Image(); im.src = `/assets/burger/${k}.jpg`;
+    try { await im.decode(); photos[k] = im; } catch { /* guna ilustrasi vektor */ }
+  }));
+  setPhotos(photos);
   const q = qrcode(0, 'M');
   q.addData('https://kedai.annurpro.com/contoh?src=qr');
   q.make();

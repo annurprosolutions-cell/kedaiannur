@@ -89,17 +89,27 @@ function statusBar(c, light = false, time = '9:41') {
 // ------------------------------------------------------------------ gambar produk (vektor)
 
 export const PRODUK = {
-  lapis: { name: 'Kuih lapis', price: 1200, bg: '#fde8ef' },
-  karipap: { name: 'Karipap pusing', price: 800, bg: '#fef3c7' },
-  serimuka: { name: 'Seri muka', price: 1500, bg: '#dcfce7' },
-  kek: { name: 'Kek coklat moist', price: 4500, bg: '#ffedd5' },
-  teh: { name: 'Teh tarik', price: 350, bg: '#fef9c3' },
-  sirap: { name: 'Sirap selasih', price: 400, bg: '#fce7f3' },
+  classic: { name: 'Classic Beef Burger', price: 1200, bg: '#1c1917' },
+  crispy: { name: 'Crispy Chicken Burger', price: 1500, bg: '#1c1917' },
+  bbq: { name: 'BBQ Beef Burger', price: 1350, bg: '#1c1917' },
+  spicy: { name: 'Spicy Chicken Burger', price: 1800, bg: '#1c1917' },
+  sirap: { name: 'Air sirap selasih', price: 400, bg: '#fce7f3' },
 };
+// Gambar sebenar kedai (promo/assets/burger/*.jpg, tidak dalam git). Jika tiada, ilustrasi vektor digunakan.
+const PHOTOS = {};
+export function setPhotos(map) { Object.assign(PHOTOS, map); }
+function cover(c, img, x, y, w, h) {
+  const k = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+  const iw = w / k; const ih = h / k;
+  c.drawImage(img, (img.naturalWidth - iw) / 2, (img.naturalHeight - ih) / 2, iw, ih, x, y, w, h);
+}
+const photo = (k) => (PHOTOS[k] && PHOTOS[k].complete && PHOTOS[k].naturalWidth ? PHOTOS[k] : null);
 const rm = (sen) => `RM${(sen / 100).toFixed(2)}`;
 
 export function illus(c, key, x, y, w, h) {
   const p = PRODUK[key];
+  const img = photo(key);
+  if (img) { c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip(); cover(c, img, x, y, w, h); c.restore(); return; }
   c.save();
   c.beginPath(); c.rect(x, y, w, h); c.clip();
   c.fillStyle = p.bg; c.fillRect(x, y, w, h);
@@ -108,7 +118,11 @@ export function illus(c, key, x, y, w, h) {
   const s = Math.min(w, h) / 120;
   c.translate(cx, cy); c.scale(s, s);
   c.fillStyle = 'rgba(15,23,42,0.08)'; c.beginPath(); c.ellipse(0, 40, 38, 7, 0, 0, Math.PI * 2); c.fill();
-  if (key === 'lapis') {
+  if (key === 'classic' || key === 'crispy' || key === 'bbq' || key === 'spicy') {
+    const patty = { classic: '#5b2a0c', crispy: '#d97706', bbq: '#3b1d0b', spicy: '#b91c1c' }[key];
+    fillRR(c, -36, 16, 72, 14, 7, '#f59e0b'); fillRR(c, -36, 6, 72, 12, 4, patty); fillRR(c, -38, -2, 76, 8, 4, '#84cc16');
+    fillRR(c, -36, -24, 72, 26, 13, '#f59e0b');
+  } else if (key === 'lapis') {
     const cols = ['#fb7185', '#fde68a', '#86efac', '#93c5fd', '#fb7185', '#fde68a'];
     for (let i = 0; i < 6; i++) { fillRR(c, -34, 30 - (i + 1) * 9, 68, 9.5, 2, cols[i]); }
     c.strokeStyle = 'rgba(255,255,255,0.7)'; c.lineWidth = 1.4; c.strokeRect(-34, -24, 68, 54);
@@ -137,6 +151,14 @@ export function illus(c, key, x, y, w, h) {
 }
 
 // ------------------------------------------------------------------ komponen
+
+function ellip(c, str, maxW, size, weight = 700) {
+  font(c, size, weight);
+  if (c.measureText(str).width <= maxW) return str;
+  let t = str;
+  while (t.length > 1 && c.measureText(`${t}…`).width > maxW) t = t.slice(0, -1);
+  return `${t}…`;
+}
 
 function button(c, x, y, w, h, label, { bg = C.primary, color = '#fff', t = 0, tapAt = null } = {}) {
   const press = tapAt === null ? 0 : (() => { const d = t - tapAt; return d > 0 && d < 0.25 ? Math.sin((d / 0.25) * Math.PI) : 0; })();
@@ -259,26 +281,26 @@ function produkBaru(c, t) {
     text(c, 'Tambah gambar', LW / 2, 200, { size: 15, weight: 700, color: C.muted, align: 'center' });
   } else {
     c.save(); c.translate(180, 195); c.scale(k, k); c.translate(-180, -195);
-    c.save(); rr(c, 20, 100, 320, 190, 16); c.clip(); illus(c, 'lapis', 20, 100, 320, 190); c.restore();
+    c.save(); rr(c, 20, 100, 320, 190, 16); c.clip(); illus(c, 'classic', 20, 100, 320, 190); c.restore();
     c.strokeStyle = '#fff'; c.lineWidth = 2;
     rr(c, 60, 115, 240, 160, 8); c.stroke();
     c.restore();
   }
-  field(c, 20, 318, 320, 'Nama produk', typed('Kuih lapis', t, 21.4, 11), { focus: t < 22.3 && t > 21.3, t });
-  field(c, 20, 396, 320, 'Harga', typed('RM12.00', t, 22.4, 9), { focus: t >= 22.3 && t < 23.1, t });
+  field(c, 20, 318, 320, 'Nama produk', typed('Classic Beef Burger', t, 21.2, 18), { focus: t < 22.3 && t > 21.1, t });
+  field(c, 20, 396, 320, 'Harga', typed('RM12.00', t, 22.3, 12), { focus: t >= 22.3 && t < 23.0, t });
   text(c, 'Kategori', 20, 484, { size: 12, weight: 600, color: C.muted });
-  const sel = t >= 23.0;
-  fillRR(c, 20, 494, 140, 38, 19, sel ? C.primary : '#fff', sel ? C.primary : C.border);
-  text(c, 'Kuih tradisional', 90, 518, { size: 13, weight: 700, color: sel ? '#fff' : C.text, align: 'center' });
-  fillRR(c, 170, 494, 96, 38, 19, '#fff', C.border);
-  text(c, 'Minuman', 218, 518, { size: 13, weight: 700, align: 'center' });
+  const sel = t >= 23.1;
+  fillRR(c, 20, 494, 90, 38, 19, sel ? C.primary : '#fff', sel ? C.primary : C.border);
+  text(c, 'Burger', 65, 518, { size: 13, weight: 700, color: sel ? '#fff' : C.text, align: 'center' });
+  fillRR(c, 120, 494, 96, 38, 19, '#fff', C.border);
+  text(c, 'Minuman', 168, 518, { size: 13, weight: 700, align: 'center' });
   button(c, 20, 560, 320, 54, 'Simpan produk', { t, tapAt: 23.6 });
   touch(c, 180, 588, t, 23.6);
 }
 
 function produkSenarai(c, t) {
   appHeader(c, 'Produk');
-  const items = ['lapis', 'karipap', 'serimuka', 'kek', 'teh', 'sirap'];
+  const items = ['classic', 'crispy', 'bbq', 'spicy', 'sirap'];
   const n = items.filter((_, i) => t >= 24.2 + i * 0.4).length;
   text(c, `${n} produk`, 20, 100, { size: 14, weight: 600, color: C.muted });
   items.forEach((key, i) => {
@@ -290,7 +312,7 @@ function produkSenarai(c, t) {
     c.save(); c.translate(x + 77, y + 90); c.scale(k, k); c.translate(-(x + 77), -(y + 90));
     fillRR(c, x, y, 154, 184, 16, '#fff', C.border);
     c.save(); rr(c, x, y, 154, 108, 16); c.clip(); illus(c, key, x, y, 154, 108); c.restore();
-    text(c, PRODUK[key].name, x + 12, y + 134, { size: 13, weight: 700 });
+    text(c, ellip(c, PRODUK[key].name, 130, 13), x + 12, y + 134, { size: 13, weight: 700 });
     text(c, rm(PRODUK[key].price), x + 12, y + 156, { size: 14, weight: 800, color: C.primary });
     fillRR(c, x + 100, y + 160, 42, 16, 8, '#dcfce7');
     text(c, 'Ada', x + 121, y + 172, { size: 10, weight: 700, color: '#166534', align: 'center' });
@@ -374,7 +396,7 @@ function lock(c, t) {
     text(c, 'sekarang', 330, y + 33, { size: 12, color: C.muted, align: 'right' });
     text(c, 'Aina', 28, y + 66, { size: 16, weight: 800 });
     font(c, 14, 500);
-    wrap(c, 'Hai Kedai Contoh, saya nak order: 1. Karipap pusing x2 = RM16.00 2. Kuih lapis x1 = RM12.00', 296).slice(0, 2).forEach((ln, i) => text(c, ln, 28, y + 88 + i * 19, { size: 14, color: C.text }));
+    wrap(c, 'Hai Kedai Contoh, saya nak order: 1. Classic Beef Burger x2 = RM24.00 2. Spicy Chicken Burger x1 = RM18.00', 296).slice(0, 2).forEach((ln, i) => text(c, ln, 28, y + 88 + i * 19, { size: 14, color: C.text }));
     c.restore();
     touch(c, 190, y + 70, t, 50.1);
   }
@@ -383,11 +405,11 @@ function lock(c, t) {
 const ORDER = [
   'Hai Kedai Contoh, saya nak order:',
   '',
-  '1. Karipap pusing x2 = RM16.00',
-  '2. Kuih lapis x1 = RM12.00',
-  '3. Teh tarik x2 = RM7.00',
+  '1. Classic Beef Burger x2 = RM24.00',
+  '2. Spicy Chicken Burger x1 = RM18.00',
+  '3. Air sirap selasih x2 = RM8.00',
   '',
-  'Jumlah: RM35.00',
+  'Jumlah: RM50.00',
   '',
   'Nama: Aina',
 ];
@@ -468,46 +490,55 @@ export function screenMerchant(c, t, qr) {
 
 // ------------------------------------------------------------------ skrin pelanggan (telefon C)
 
-const GRID = ['lapis', 'karipap', 'serimuka', 'kek', 'teh', 'sirap'];
+const GRID = ['classic', 'crispy', 'bbq', 'spicy', 'sirap'];
 const TAPS = [ // [masa, produk]
-  [37.0, 'karipap'], [37.6, 'karipap'], [38.4, 'lapis'], [39.9, 'teh'], [40.4, 'teh'],
+  [37.0, 'classic'], [37.6, 'classic'], [38.4, 'spicy'], [39.9, 'sirap'], [40.4, 'sirap'],
 ];
 function cartState(t) {
-  const q = { karipap: 0, lapis: 0, teh: 0 };
+  const q = { classic: 0, spicy: 0, sirap: 0 };
   for (const [tt, k] of TAPS) if (t >= tt) q[k]++;
-  const items = q.karipap + q.lapis + q.teh;
-  const total = q.karipap * 800 + q.lapis * 1200 + q.teh * 350;
+  const items = q.classic + q.spicy + q.sirap;
+  const total = q.classic * PRODUK.classic.price + q.spicy * PRODUK.spicy.price + q.sirap * PRODUK.sirap.price;
   return { q, items, total };
 }
 
+const GRID_TOP = 384;
+const ROW = 214;
+const scrollAt = (t) => easeInOut(seg(t, 35.6, 36.4)) * 190 + easeInOut(seg(t, 38.9, 39.5)) * 214;
+
 function shopPage(c, t) {
   c.fillStyle = C.bg; c.fillRect(0, 0, LW, LH);
-  const scroll = lerp(0, 0, 0) + easeInOut(seg(t, 35.6, 36.4)) * 150 + easeInOut(seg(t, 38.9, 39.5)) * 214;
+  const scroll = scrollAt(t);
   c.save(); c.translate(0, -scroll);
-  // sepanduk
-  const g = c.createLinearGradient(0, 0, LW, 150);
-  g.addColorStop(0, '#0f766e'); g.addColorStop(1, '#0b3b4a');
-  c.fillStyle = g; c.fillRect(0, 0, LW, 168);
-  c.fillStyle = 'rgba(251,191,36,0.9)'; c.beginPath(); c.arc(300, 60, 54, 0, 7); c.fill();
-  c.fillStyle = 'rgba(255,255,255,0.15)'; c.beginPath(); c.arc(40, 150, 70, 0, 7); c.fill();
-  text(c, 'Kuih dan minuman', 22, 108, { size: 14, weight: 600, color: 'rgba(255,255,255,0.85)' });
-  text(c, 'Segar setiap pagi', 22, 138, { size: 26, weight: 800, color: '#fff' });
-  text(c, 'Kedai Contoh', 20, 208, { size: 26, weight: 800 });
-  fillRR(c, 20, 224, 320, 44, 22, '#fff', C.border, 1.5);
-  text(c, 'Cari produk', 40, 252, { size: 15, color: '#94a3b8' });
-  ['Semua', 'Kuih', 'Kek dan roti', 'Minuman'].forEach((s, i) => {
-    const xs = [20, 96, 150, 250];
-    const ws = [68, 46, 90, 78];
-    fillRR(c, xs[i], 282, ws[i], 34, 17, i === 0 ? C.primary : '#fff', i === 0 ? C.primary : C.border, 1.2);
-    text(c, s, xs[i] + ws[i] / 2, 304, { size: 13, weight: 700, color: i === 0 ? '#fff' : C.text, align: 'center' });
+  // sepanduk (gambar sebenar kedai) dan logo
+  const bn = photo('banner');
+  if (bn) { c.save(); c.beginPath(); c.rect(0, 0, LW, 168); c.clip(); cover(c, bn, 0, 0, LW, 168); c.restore(); } else {
+    const g = c.createLinearGradient(0, 0, LW, 150); g.addColorStop(0, '#0f766e'); g.addColorStop(1, '#0b3b4a');
+    c.fillStyle = g; c.fillRect(0, 0, LW, 168);
+  }
+  c.save(); c.beginPath(); c.arc(52, 172, 31, 0, 7); c.fillStyle = '#fff'; c.fill(); c.clip();
+  const lg = photo('logo');
+  if (lg) cover(c, lg, 22, 142, 60, 60);
+  c.restore();
+  text(c, 'Kedai Contoh', 96, 196, { size: 23, weight: 800 });
+  font(c, 13, 500);
+  wrap(c, 'Ini kedai contoh. Cuba tambah produk ke troli dan tekan Hantar ke WhatsApp untuk lihat bagaimana order sampai kepada peniaga.', 320)
+    .forEach((ln, i) => text(c, ln, 20, 232 + i * 18, { size: 13, color: C.muted }));
+  fillRR(c, 20, 282, 320, 44, 22, '#fff', C.border, 1.5);
+  text(c, 'Cari produk', 40, 310, { size: 15, color: '#94a3b8' });
+  ['Semua', 'Burger', 'Minuman'].forEach((label, i) => {
+    const xs = [20, 96, 168];
+    const ws = [68, 62, 76];
+    fillRR(c, xs[i], 336, ws[i], 34, 17, i === 0 ? C.primary : '#fff', i === 0 ? C.primary : C.border, 1.2);
+    text(c, label, xs[i] + ws[i] / 2, 358, { size: 13, weight: 700, color: i === 0 ? '#fff' : C.text, align: 'center' });
   });
   const cs = cartState(t);
   GRID.forEach((key, i) => {
     const x = 20 + (i % 2) * 166;
-    const y = 332 + Math.floor(i / 2) * 214;
+    const y = GRID_TOP + Math.floor(i / 2) * ROW;
     fillRR(c, x, y, 154, 200, 16, '#fff', C.border);
     c.save(); rr(c, x, y, 154, 118, 16); c.clip(); illus(c, key, x, y, 154, 118); c.restore();
-    text(c, PRODUK[key].name, x + 12, y + 144, { size: 13, weight: 700 });
+    text(c, ellip(c, PRODUK[key].name, 128, 13), x + 12, y + 144, { size: 13, weight: 700 });
     text(c, rm(PRODUK[key].price), x + 12, y + 168, { size: 14, weight: 800, color: C.primary });
     const bump = (cs.q[key] !== undefined && TAPS.some(([tt, k]) => k === key && t >= tt && t < tt + 0.3)) ? 1.18 : 1;
     c.save(); c.translate(x + 124, y + 164); c.scale(bump, bump);
@@ -515,16 +546,14 @@ function shopPage(c, t) {
     c.strokeStyle = '#fff'; c.lineWidth = 2.6; c.beginPath(); c.moveTo(-8, 0); c.lineTo(8, 0); c.moveTo(0, -8); c.lineTo(0, 8); c.stroke();
     c.restore();
   });
-  text(c, 'Dikuasakan oleh Kedai AnnurPro', LW / 2, 332 + 3 * 214 + 18, { size: 12, color: C.muted, align: 'center' });
+  text(c, 'Dikuasakan oleh Kedai AnnurPro', LW / 2, GRID_TOP + 3 * ROW + 18, { size: 12, color: C.muted, align: 'center' });
   c.restore();
   statusBarOverlay(c);
-  // sentuhan (koordinat skrin selepas skrol)
-  const place = (key, tt) => {
+  // sentuhan: koordinat skrin selepas skrol
+  TAPS.forEach(([tt, key]) => {
     const i = GRID.indexOf(key);
-    const sc = tt < 39.2 ? (tt < 36 ? 0 : 150) : 364;
-    return [20 + (i % 2) * 166 + 124, 332 + Math.floor(i / 2) * 214 + 164 - sc];
-  };
-  TAPS.forEach(([tt, key]) => { const [x, y] = place(key, tt); touch(c, x, y, t, tt); });
+    touch(c, 20 + (i % 2) * 166 + 124, GRID_TOP + Math.floor(i / 2) * ROW + 164 - scrollAt(tt), t, tt);
+  });
   // bar troli
   if (cs.items > 0) {
     const k = easeOut(seg(t, 37.05, 37.5));
@@ -556,7 +585,7 @@ function sheet(c, t, kind) {
   fillRR(c, LW / 2 - 20, y + 10, 40, 4, 2, '#cbd5e1');
   if (kind === 'cart') {
     text(c, 'Troli', 20, y + 56, { size: 24, weight: 800 });
-    const rows = [['Karipap pusing', 2, 1600], ['Kuih lapis', 1, 1200], ['Teh tarik', 2, 700]];
+    const rows = [['Classic Beef Burger', 2, 2400], ['Spicy Chicken Burger', 1, 1800], ['Air sirap selasih', 2, 800]];
     rows.forEach(([n, q, p], i) => {
       const yy = y + 100 + i * 88;
       text(c, n, 20, yy, { size: 16, weight: 700 });
@@ -568,7 +597,7 @@ function sheet(c, t, kind) {
     });
     c.fillStyle = C.border; c.fillRect(20, y + 358, 320, 1);
     text(c, 'Jumlah', 20, y + 390, { size: 16 });
-    text(c, 'RM35.00', 340, y + 392, { size: 20, weight: 800, align: 'right' });
+    text(c, 'RM50.00', 340, y + 392, { size: 20, weight: 800, align: 'right' });
     button(c, 20, y + 408, 320, 48, 'Teruskan', { t, tapAt: 43.4 });
     touch(c, 180, y + 432, t, 43.4);
   } else {
@@ -576,7 +605,7 @@ function sheet(c, t, kind) {
     field(c, 20, y + 84, 320, 'Nama anda', typed('Aina', t, 44.1, 6), { focus: t < 45.2, t });
     fillRR(c, 20, y + 176, 320, 72, 14, '#f1f5f9');
     text(c, '5 item', 36, y + 204, { size: 14, weight: 600, color: C.muted });
-    text(c, 'Jumlah RM35.00', 36, y + 232, { size: 18, weight: 800 });
+    text(c, 'Jumlah RM50.00', 36, y + 232, { size: 18, weight: 800 });
     button(c, 20, y + 270, 320, 54, 'Hantar ke WhatsApp', { bg: C.wa, color: '#0b1f12', t, tapAt: 45.6 });
     text(c, 'Order dihantar dalam satu mesej yang tersusun', LW / 2, y + 350, { size: 12, color: C.muted, align: 'center' });
     touch(c, 180, y + 297, t, 45.6);

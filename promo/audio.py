@@ -13,6 +13,20 @@ import numpy as np
 SR = 44100
 TL = json.loads((Path(__file__).parent / "timeline.json").read_text())
 DUR = TL["duration"]
+# Garis masa dalaman (animasi video) ke masa output: dilaraskan mengikut hujung ayat suara (lihat "vo" dalam timeline.json).
+_VO = TL.get("vo")
+if _VO:
+    ANCH = [(a / _VO["tempo"], b) for a, b in _VO["anchors"]]
+else:
+    ANCH = [(0.0, 0.0), (DUR, DUR)]
+
+
+def to_out(ti):
+    for (a0, b0), (a1, b1) in zip(ANCH, ANCH[1:]):
+        if ti <= b1:
+            return a0 + (a1 - a0) * (ti - b0) / (b1 - b0)
+    return ANCH[-1][0]
+
 N = int(DUR * SR)
 rng = np.random.default_rng(7)
 
@@ -174,8 +188,10 @@ def sfx(kind, **kw):
 # ------------------------------------------------------------------ muzik
 BPM = TL["music"]["bpm"]
 BEAT = 60 / BPM
-START = TL["music"]["start"]
+START = to_out(TL["music"]["start"])
 END = TL["music"]["end"] - 1.3
+T_ARP = to_out(10.0)
+T_PAD = to_out(28.0)
 BARS = [  # (akar bass, kord arp)
     (110.0, (220.0, 261.63, 329.63)),   # Am
     (87.31, (174.61, 220.0, 261.63)),   # F
@@ -192,22 +208,22 @@ while START + b * BEAT < END:
     # kick: setiap detik; hi-hat: sela detik; clap: detik 2 dan 4
     put(MUSIC_L, MUSIC_R, kick(), t, 0.95)
     KICKS.append(t)
-    if beat_in_bar in (1, 3) and t >= 10.0:
+    if beat_in_bar in (1, 3) and t >= T_ARP:
         put(MUSIC_L, MUSIC_R, clap(), t, 0.55, pan=0.1)
     put(MUSIC_L, MUSIC_R, hat(), t + BEAT / 2, 0.55, pan=-0.2)
-    if t >= 28.0:
+    if t >= T_PAD:
         put(MUSIC_L, MUSIC_R, hat(True), t + BEAT * 0.75, 0.3, pan=0.25)
         put(MUSIC_L, MUSIC_R, hat(), t, 0.3, pan=0.2)
     # bass: nota akar pada setiap setengah detik
     for h in (0, 1):
         put(DUCK_BUS_L, DUCK_BUS_R, bass(root if h == 0 or beat_in_bar % 2 == 0 else root * 1.5, BEAT * 0.9), t + h * BEAT / 2, 0.55)
     # arp pluck
-    if t >= 10.0:
+    if t >= T_ARP:
         for h in range(2):
             idx = (b * 2 + h) % 4
-            f = chord[[0, 1, 2, 1][idx]] * (2 if t >= 28.0 else 1)
-            put(MUSIC_L, MUSIC_R, pluck(f), t + h * BEAT / 2, 0.42 if t < 28.0 else 0.5, pan=-0.35 if h == 0 else 0.35)
-    if beat_in_bar == 0 and t >= 28.0:
+            f = chord[[0, 1, 2, 1][idx]] * (2 if t >= T_PAD else 1)
+            put(MUSIC_L, MUSIC_R, pluck(f), t + h * BEAT / 2, 0.42 if t < T_PAD else 0.5, pan=-0.35 if h == 0 else 0.35)
+    if beat_in_bar == 0 and t >= T_PAD:
         put(DUCK_BUS_L, DUCK_BUS_R, pad(chord, BEAT * 4), t, 1.0)
     b += 1
 
@@ -222,8 +238,9 @@ MUSIC_L += DUCK_BUS_L * duck
 MUSIC_R += DUCK_BUS_R * duck
 
 # pembukaan (0 hingga 5 saat): dron rendah yang makin kuat
-t = tvec(5.0)
-drone = (np.sin(2 * np.pi * 55 * t) + 0.6 * np.sin(2 * np.pi * 82.5 * t * (1 + 0.02 * t / 5))) * (0.25 * (t / 5) ** 1.6) * (0.75 + 0.25 * np.sin(2 * np.pi * (1.5 + 3 * t / 5) * t))
+D0 = START
+t = tvec(D0)
+drone = (np.sin(2 * np.pi * 55 * t) + 0.6 * np.sin(2 * np.pi * 82.5 * t * (1 + 0.02 * t / D0))) * (0.25 * (t / D0) ** 1.6) * (0.75 + 0.25 * np.sin(2 * np.pi * (1.5 + 3 * t / D0) * t))
 MUSIC_L[: len(t)] += drone
 MUSIC_R[: len(t)] += drone
 
@@ -231,7 +248,7 @@ MUSIC_R[: len(t)] += drone
 for ev in TL["sfx"]:
     kind = ev["type"]
     sig = sfx(kind, **({"len": ev["len"]} if "len" in ev else {}))
-    t0 = ev["t"] - (ev["len"] if kind == "riser" else 0)
+    t0 = to_out(ev["t"]) - (ev["len"] if kind == "riser" else 0)
     gain = {"blip": 0.5, "tap": 0.7, "pop": 0.55, "chime": 0.55, "whoosh": 0.6, "riser": 0.5, "boom": 0.9, "ding": 0.8, "sent": 0.6}[kind]
     pan = float(np.sin(ev["t"] * 7)) * 0.3 if kind in ("blip", "pop") else 0.0
     put(L, R, sig, t0, gain, pan)
